@@ -1,0 +1,108 @@
+0000000000013db0 <demo::main>:
+demo::main:
+src/demo.rs:27
+   13db0:	push   rbp
+   13db1:	mov    rbp,rsp
+alloc::alloc::alloc:
+src/demo.rs:27
+   13db4:	push   rbx
+   13db5:	sub    rsp,0x28
+library/alloc/src/alloc.rs:99
+   13db9:	call   QWORD PTR [rip+0x40251]        # 54010 <_DYNAMIC+0x238>
+library/alloc/src/alloc.rs:101
+   13dbf:	mov    edi,0x20
+   13dc4:	mov    esi,0x1
+   13dc9:	call   QWORD PTR [rip+0x40249]        # 54018 <_DYNAMIC+0x240>
+<alloc::raw_vec::RawVecInner>::try_allocate_in:
+library/alloc/src/raw_vec/mod.rs:469
+   13dcf:	test   rax,rax
+<alloc::raw_vec::RawVecInner>::with_capacity_in:
+library/alloc/src/raw_vec/mod.rs:434
+   13dd2:	je     13e63 <demo::main+0xb3>
+core::ptr::copy_nonoverlapping::<u8>:
+library/core/src/ptr/mod.rs:551
+   13dd8:	movups xmm0,XMMWORD PTR [rip+0xffffffffffff0c81]        # 4a60 <__abi_tag+0x4764>
+   13ddf:	movups XMMWORD PTR [rax+0x10],xmm0
+   13de3:	movups xmm0,XMMWORD PTR [rip+0xffffffffffff0c66]        # 4a50 <__abi_tag+0x4754>
+   13dea:	movups XMMWORD PTR [rax],xmm0
+<alloc::string::String>::from_utf8_unchecked:
+library/alloc/src/string.rs:1023
+   13ded:	mov    QWORD PTR [rbp-0x20],0x20
+   13df5:	mov    QWORD PTR [rbp-0x18],rax
+   13df9:	mov    QWORD PTR [rbp-0x10],0x20
+   13e01:	lea    rax,[rbp-0x20]
+demo::main:
+src/demo.rs:31
+   13e05:	mov    QWORD PTR [rbp-0x28],rax
+   13e09:	lea    rbx,[rbp-0x28]
+core::ptr::drop_glue::<demo::Q>:
+library/core/src/ptr/mod.rs:825
+   13e0d:	mov    rdi,rbx
+   13e10:	call   13e90 <<demo::Q as core::ops::drop::Drop>::drop>
+<alloc::raw_vec::RawVecInner>::current_memory:
+library/alloc/src/raw_vec/mod.rs:634
+   13e15:	mov    rsi,QWORD PTR [rbp-0x20]
+   13e19:	test   rsi,rsi
+   13e1c:	je     13e2d <demo::main+0x7d>
+library/alloc/src/raw_vec/mod.rs:644
+   13e1e:	mov    rdi,QWORD PTR [rbp-0x18]
+alloc::alloc::dealloc_nonnull:
+library/alloc/src/alloc.rs:128
+   13e22:	mov    edx,0x1
+   13e27:	call   QWORD PTR [rip+0x401f3]        # 54020 <_DYNAMIC+0x248>
+alloc::alloc::alloc:
+library/alloc/src/alloc.rs:99
+   13e2d:	call   QWORD PTR [rip+0x401dd]        # 54010 <_DYNAMIC+0x238>
+demo::main:
+src/demo.rs:35
+   13e33:	call   13e80 <demo::read_kept>
+   13e38:	mov    QWORD PTR [rbp-0x28],rax
+src/demo.rs:36
+   13e3c:	mov    QWORD PTR [rbp-0x20],rbx
+   13e40:	lea    rax,[rip+0x69]        # 13eb0 <<&alloc::string::String as core::fmt::Display>::fmt>
+   13e47:	mov    QWORD PTR [rbp-0x18],rax
+   13e4b:	lea    rdi,[rip+0xffffffffffff0e8c]        # 4cde <__abi_tag+0x49e2>
+   13e52:	lea    rsi,[rbp-0x20]
+   13e56:	call   QWORD PTR [rip+0x401cc]        # 54028 <_DYNAMIC+0x250>
+src/demo.rs:38
+   13e5c:	add    rsp,0x28
+   13e60:	pop    rbx
+   13e61:	pop    rbp
+   13e62:	ret    
+<alloc::raw_vec::RawVecInner>::with_capacity_in:
+library/alloc/src/raw_vec/mod.rs:442
+   13e63:	mov    edi,0x1
+   13e68:	mov    esi,0x20
+   13e6d:	call   QWORD PTR [rip+0x401bd]        # 54030 <_DYNAMIC+0x258>
+demo::main:
+
+0000000000013e80 <demo::read_kept>:
+demo::read_kept:
+src/demo.rs:23
+   13e80:	push   rbp
+   13e81:	mov    rbp,rsp
+core::sync::atomic::atomic_load::<*mut alloc::string::String>:
+library/core/src/sync/atomic.rs:3904
+   13e84:	mov    rax,QWORD PTR [rip+0x4239d]        # 56228 <_RNvCscU8Vk5KhzgW_4demo4KEPT.0>
+demo::read_kept:
+src/demo.rs:25
+   13e8b:	pop    rbp
+   13e8c:	ret    
+
+0000000000013e90 <<demo::Q as core::ops::drop::Drop>::drop>:
+<demo::Q as core::ops::drop::Drop>::drop:
+src/demo.rs:13
+   13e90:	push   rbp
+   13e91:	mov    rbp,rsp
+src/demo.rs:14
+   13e94:	mov    rax,QWORD PTR [rdi]
+   13e97:	test   rax,rax
+   13e9a:	je     13ea3 <<demo::Q as core::ops::drop::Drop>::drop+0x13>
+core::sync::atomic::atomic_store::<*mut alloc::string::String>:
+library/core/src/sync/atomic.rs:3889
+   13e9c:	mov    QWORD PTR [rip+0x42385],rax        # 56228 <_RNvCscU8Vk5KhzgW_4demo4KEPT.0>
+<demo::Q as core::ops::drop::Drop>::drop:
+src/demo.rs:19
+   13ea3:	pop    rbp
+   13ea4:	ret    
+

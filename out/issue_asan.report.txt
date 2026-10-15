@@ -1,0 +1,66 @@
+=================================================================
+==4086748==ERROR: AddressSanitizer: stack-use-after-scope on address 0x6d900d9f0108 at pc 0x650582b71ceb bp 0x7ffee75d32f0 sp 0x7ffee75d32e8
+READ of size 8 at 0x6d900d9f0108 thread T0
+    #0 0x650582b71cea  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104cea) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #1 0x650582b71642  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104642) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #2 0x650582b71692  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104692) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #3 0x650582babf49  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x13ef49) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #4 0x650582b9d6a0  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x1306a0) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #5 0x650582b98389  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x12b389) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #6 0x650582b6ff63  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x102f63) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #7 0x650582b71d4a  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104d4a) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #8 0x650582b6e98d  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x10198d) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #9 0x650582b6f9d0  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x1029d0) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #10 0x650582b97486  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x12a486) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #11 0x650582b6e78f  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x10178f) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #12 0x650582b71edd  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104edd) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #13 0x71900fa29d8f  (/lib/x86_64-linux-gnu/libc.so.6+0x29d8f) (BuildId: 095c7ba148aeca81668091f718047078d57efddb)
+    #14 0x71900fa29e3f  (/lib/x86_64-linux-gnu/libc.so.6+0x29e3f) (BuildId: 095c7ba148aeca81668091f718047078d57efddb)
+    #15 0x650582ab3f24  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x46f24) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+
+Address 0x6d900d9f0108 is located in stack of thread T0 at offset 264 in frame
+    #0 0x650582b6fa5f  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x102a5f) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+
+  This frame has 7 object(s):
+    [32, 48) 'e.i'
+    [64, 80) 'args' (line 16)
+    [96, 104) '_14' (line 16)
+    [128, 144) 'k' (line 15)
+    [160, 184) '_z' (line 14)
+    [224, 232) 'q' (line 11)
+    [256, 280) 'l' (line 10) <== Memory access at offset 264 is inside this variable
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-use-after-scope (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104cea) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007) 
+Shadow bytes around the buggy address:
+  0x6d900d9efe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9eff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9eff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0000: f1 f1 f1 f1 f8 f8 f2 f2 00 00 f2 f2 00 f2 f2 f2
+  0x6d900d9f0080: 00 00 f2 f2 00 00 00 f2 f2 f2 f2 f2 f8 f2 f2 f2
+=>0x6d900d9f0100: f8[f8]f8 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3
+  0x6d900d9f0180: f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3
+  0x6d900d9f0200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0380: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==4086748==ABORTING

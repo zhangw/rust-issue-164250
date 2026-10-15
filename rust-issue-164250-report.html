@@ -1,0 +1,1995 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rust #164250 汇编剖析</title>
+<style>
+:root{--ink:#17283b;--muted:#5a6b7d;--line:#dae3ec;--blue:#175d94;--paper:#fff;--bg:#f2f5f9;--soft:#f0f5fa;
+--ok:#1f7a55;--ok-bg:#e6f5ee;--warn:#9b5716;--warn-bg:#fff4e3;--bad:#a3302a;--bad-bg:#fde9e7;--new:#175d94;--new-bg:#e5f0fb;
+--code-bg:#112337;--code-ink:#e1edf9;--code-dim:#7f98b2;--code-hi:#24496a;--code-hi2:#3b2f12}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#dde6ef;--muted:#9aabbd;--line:#2c3b4b;--blue:#7cb8ec;--paper:#17212c;--bg:#0f161e;--soft:#1d2a37;
+--ok:#6fd3a5;--ok-bg:#16352a;--warn:#f0b56b;--warn-bg:#382a14;--bad:#ff8f86;--bad-bg:#3d1c1a;--new:#8cc4f5;--new-bg:#16304a;--code-bg:#0b1724;--code-hi:#21456a;--code-hi2:#4a3a12}}
+:root[data-theme="dark"]{--ink:#dde6ef;--muted:#9aabbd;--line:#2c3b4b;--blue:#7cb8ec;--paper:#17212c;--bg:#0f161e;--soft:#1d2a37;
+--ok:#6fd3a5;--ok-bg:#16352a;--warn:#f0b56b;--warn-bg:#382a14;--bad:#ff8f86;--bad-bg:#3d1c1a;--new:#8cc4f5;--new-bg:#16304a;--code-bg:#0b1724;--code-hi:#21456a;--code-hi2:#4a3a12}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.8 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:1240px;margin:auto;padding:36px 28px 70px}
+header{background:#142d46;color:#fff;padding:36px 40px;border-radius:18px}header p{color:#d9e6f2;margin:6px 0}
+h1{font-size:32px;line-height:1.35;margin:8px 0 14px}h2{font-size:24px;line-height:1.4;margin:0 0 18px}h3{font-size:19px;margin:26px 0 10px}
+p{margin:12px 0}a{color:var(--blue);text-underline-offset:3px}.kicker{letter-spacing:.12em;font-size:12px;font-weight:700;color:#9cc8ef}.meta{font-size:13px}
+nav{display:flex;flex-wrap:wrap;gap:6px 18px;padding:18px 4px;font-size:14px}
+section{background:var(--paper);padding:30px 34px;margin-bottom:22px;border:1px solid var(--line);border-radius:14px;scroll-margin-top:16px}
+.callout{border-left:4px solid #238a80;background:var(--ok-bg);padding:16px 20px;border-radius:4px}
+.note{border-left:4px solid #bd8326;background:var(--warn-bg);padding:14px 20px;border-radius:4px}
+.source,.muted{color:var(--muted);font-size:13px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}
+p code,li code,td code{background:var(--soft);padding:1px 5px;border-radius:4px}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px;border-radius:9px;overflow:auto;font-size:13px;line-height:1.65;tab-size:4}
+pre code{font-size:inherit;overflow-wrap:normal;background:none;padding:0}
+details{border:1px solid var(--line);border-radius:9px;margin:12px 0;padding:12px 16px}summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}details pre{max-height:620px}
+.table-scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px;margin:14px 0}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{background:var(--soft)}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.step{background:var(--soft);border-top:3px solid #3378ad;padding:14px;border-radius:6px;font-size:14px}.step b{display:block;color:var(--blue);margin-bottom:6px}
+.hash{font-size:11px;word-break:break-all}footer{text-align:center;font-size:13px;color:var(--muted)}
+
+/* 总览卡片 */
+.tldr{font-size:18px;line-height:1.75}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0 6px}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:var(--soft)}
+.card h4{margin:0 0 6px;font-size:15px}.card p{margin:0;font-size:14.5px}
+.card.c1{border-top:4px solid #7a5cc2}.card.c2{border-top:4px solid #3378ad}.card.c3{border-top:4px solid #c2493f}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:18px 0 4px;font-size:14px}
+.chain span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+.chain span.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent;font-weight:600}
+.chain i{font-style:normal;color:var(--muted)}
+
+/* SVG 图 */
+figure{margin:18px 0}figcaption{font-size:13px;color:var(--muted);margin-top:6px}
+svg text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.svg-box{fill:var(--paper);stroke:var(--ink);stroke-width:1.2}.svg-cell{fill:var(--soft);stroke:var(--ink);stroke-width:1}
+.svg-heap{fill:var(--ok-bg);stroke:var(--ok)}.svg-t{fill:var(--ink);font-size:13px}.svg-m{fill:var(--muted);font-size:12px}
+.svg-arrow{stroke:var(--blue);stroke-width:1.6;fill:none}.svg-arrowhead{fill:var(--blue)}
+.svg-bad{stroke:var(--bad);stroke-dasharray:6 4;stroke-width:1.8;fill:none}.svg-badt{fill:var(--bad);font-size:12.5px;font-weight:700}
+.svg-okline{stroke:var(--ok);stroke-width:1.8;fill:none}.svg-okt{fill:var(--ok);font-size:12.5px}
+.svg-node{fill:var(--soft);stroke:var(--ink);stroke-width:1}.svg-static{fill:var(--ok-bg);stroke:var(--ok);stroke-width:1.4}
+.svg-qvar{fill:var(--warn-bg);stroke:var(--warn);stroke-width:1.4}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:14.5px;margin:10px 0}.kv code{white-space:nowrap}
+
+/* 交互对照 */
+.lab{display:grid;grid-template-columns:minmax(0,0.95fr) minmax(0,1.25fr);gap:16px;align-items:start}
+.panel-title{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin:0 0 6px}
+.codebox{position:relative;background:var(--code-bg);color:var(--code-ink);border-radius:9px;padding:10px 0;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:auto;max-height:560px}
+.codebox .ln{display:block;white-space:pre;padding:0 12px;border-left:3px solid transparent;cursor:default}
+.codebox .ln.click{cursor:pointer}.codebox .ln.click:hover{background:#1a3450}
+.codebox .no{display:inline-block;width:30px;color:var(--code-dim);user-select:none}
+.codebox .ln.on{background:var(--code-hi);border-left-color:#7bd8d1}
+.codebox .ln.key{background:var(--code-hi2);border-left-color:#f0b56b}
+.codebox .fn{display:block;color:#9cc8ef;padding:8px 12px 2px;font-weight:700;white-space:pre}
+.codebox .cm{color:#8fa9c2}.codebox .addr{color:var(--code-dim)}
+.codebox .ln.dim{opacity:.38}
+.asm-note{color:#ffd58a}
+.stepper{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--soft)}
+.stepper-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.stepper h3{margin:0;font-size:19px}.stepper .tag{font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--new-bg);color:var(--new)}
+.stepper .tag.bug{background:var(--bad-bg);color:var(--bad)}
+.btns{display:flex;gap:6px;align-items:center}.btns button{font:inherit;font-size:14px;padding:5px 14px;border-radius:7px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.btns button:disabled{opacity:.4;cursor:default}
+.dots{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0 4px}.dots button{width:30px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:12px;cursor:pointer}
+.dots button.on{background:var(--blue);color:#fff;border-color:var(--blue)}.dots button.bug{border-color:var(--bad)}
+.step-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:8px}
+.step-text p{margin:8px 0}.step-text .why{border-left:3px solid var(--bad);background:var(--bad-bg);padding:8px 12px;border-radius:4px}
+.mem{width:100%;border-collapse:separate;border-spacing:0 4px;font-size:13px;margin:0}
+.mem td{border:0;padding:6px 10px;background:var(--paper)}.mem td:first-child{border-radius:6px 0 0 6px;white-space:nowrap;font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
+.mem td:last-child{border-radius:0 6px 6px 0}.mem td.v{font-family:ui-monospace,Menlo,monospace;font-weight:700;white-space:nowrap}
+.mem tr.live td{background:var(--ok-bg)}.mem tr.new td{background:var(--new-bg)}.mem tr.dead td{background:var(--warn-bg);color:var(--warn)}
+.mem tr.over td{background:var(--bad-bg);color:var(--bad)}.mem tr.empty td{color:var(--muted)}
+.mem tr.sep td{background:none;padding:2px 0;font-size:12px;color:var(--muted);font-family:inherit}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:6px}.legend b{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+
+/* 输出字节解码 */
+.bytes{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0}
+.grp{border-radius:7px;padding:6px 8px;font:13px ui-monospace,Menlo,monospace;text-align:center;min-width:46px}
+.grp small{display:block;font-size:11px;font-family:-apple-system,"PingFang SC",sans-serif;opacity:.9;white-space:nowrap}
+.g1{background:#e5f0fb;color:#174a78}.g2{background:#e6f5ee;color:#1d6a4a}.g3{background:#fde9e7;color:#8f2b25}.g4{background:#f1e9fb;color:#5b3d96}.g5{background:#eceff3;color:#5a6b7d}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}.vs>div{border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.vs h4{margin:0 0 6px}.big{font:700 15px ui-monospace,Menlo,monospace;word-break:break-all;background:var(--soft);padding:6px 10px;border-radius:6px;display:block;margin:6px 0}
+.noinstr{color:var(--bad);font-weight:700}
+
+@media(max-width:900px){.lab,.step-body,.vs{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.codebox{max-height:none}}
+@media(max-width:700px){main{padding:16px 16px 36px}header{padding:24px 20px}h1{font-size:26px}section{padding:22px 16px}.flow{grid-template-columns:1fr 1fr}pre{font-size:12px;padding:14px}}
+@media print{body{background:#fff;font-size:11pt}main{padding:0;max-width:none}header{background:#fff;color:#17283b;padding:12px 0}header p{color:#5a6b7d}nav,.stepper,.lab{display:none}
+section{border:0;border-top:1px solid #dae3ec;padding:18px 0;border-radius:0}pre{white-space:pre-wrap;overflow-wrap:anywhere}details pre{max-height:none}h2,h3,summary{break-after:avoid}}
+h4.sub{font-size:16.5px;margin:22px 0 8px;color:var(--blue)}
+.pipe{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:14px 0}
+.pipe>div{flex:1 1 140px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--soft);font-size:13.5px;line-height:1.55}
+.pipe>div b{display:block;margin-bottom:4px}.pipe>div.hot{border-color:#7a5cc2;background:var(--new-bg)}
+.pipe>i{font-style:normal;align-self:center;color:var(--muted)}
+td pre{margin:4px 0 8px;font-size:12px}
+ol.reason li{margin:6px 0}ol.reason .ok,ol.reason .bad{display:inline-block;margin-left:8px;font-size:12.5px;font-weight:700;padding:0 8px;border-radius:999px}
+ol.reason .ok{background:var(--ok-bg);color:var(--ok)}ol.reason .bad{background:var(--bad-bg);color:var(--bad)}
+.vs pre{margin:6px 0 0}.vs+.callout{margin-top:16px}
+</style></head>
+<body><main>
+<header><div class="kicker">RUST · 原理讲解 · 从源码到机器码</div>
+<h1>一个“过期”的引用，是怎么在机器码里被读出来的</h1>
+<p>以 rust-lang/rust #164250 为例，从内存、所有权、生命周期一路讲到汇编：Rust 的内存安全靠什么保证，这份保证出现漏洞时，机器上会发生什么。</p>
+<p class="meta">rustc 1.97.1 · Linux x86-64 · O0 / O2 · 所有地址与字节均来自本项目 <code style="background:#24496a;color:#fff">out/</code> 下现存产物</p></header>
+
+<nav><a href="#question">0 问题</a><a href="#memory">1 内存基础</a><a href="#ownership">2 所有权与析构</a><a href="#lifetime">3 生命周期</a><a href="#bug">4 漏洞</a><a href="#lab">5 机器码</a><a href="#erasure">6 运行时为何发现不了</a><a href="#compiler-view">附录 A0 编译器视角</a><a href="#mechanism">A MIR</a><a href="#runtime">B 输出与汇编</a><a href="#asan">ASan</a><a href="#repro">复现源码</a><a href="#reproduce">复验</a><a href="#materials">材料索引</a></nav>
+
+<section id="question"><h2>0 · 问题：一段 safe Rust 打印出了乱码</h2>
+<p>下面是 issue 里的原始复现，通篇 safe Rust，没有用到 <code>unsafe</code>：</p>
+<pre><code>use std::sync::Mutex;
+static KEPT: Mutex&lt;Vec&lt;Box&lt;dyn std::any::Any + Send&gt;&gt;&gt; = Mutex::new(Vec::new());
+struct Q&lt;T: 'static + Send&gt;(Option&lt;T&gt;);
+impl&lt;T: 'static + Send&gt; Drop for Q&lt;T&gt; {
+    fn drop(&amp;mut self) { if let Some(t) = self.0.take() { KEPT.lock().unwrap().push(Box::new(t)); } }
+}
+fn main() {
+    {
+        let l = String::from("hello world, this is long enough");
+        let mut q = Q(None);
+        q.0 = Some(&amp;l);
+    }
+    let _z = String::from("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+    let k = KEPT.lock().unwrap();
+    println!("{}", k[0].downcast_ref::&lt;&amp;'static String&gt;().unwrap());
+}</code></pre>
+<p>程序想打印的是 <code>l</code>，也就是 <code>"hello world, this is long enough"</code>。实际输出：</p>
+<div class="vs">
+<div><h4>O0（不优化）</h4><span class="big">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</span><p class="muted">看起来是后面变量 <code>_z</code> 的内容，原因见 5.4。</p></div>
+<div><h4>O2（优化）</h4><span class="big">UH..H..H..H..H.x.H.p.].%........</span><p class="muted">32 个乱码字节（xxd 显示，不可打印字节为 <code>.</code>）。第 5 节会用精简版说明，这是一段函数的机器码。</p></div>
+</div>
+<div class="callout">Rust 对 safe 代码有一个承诺：要么编译不通过，要么运行时不会出现内存错误（越界、悬垂引用等）。能守住这个承诺，语言就是 <b>sound（健全）</b>的。这里编译器接受了一段会读失效内存的 safe 程序，承诺被打破了，所以这个 issue 被标为 <code>I-unsound</code>。读失效内存属于<b>未定义行为（UB）</b>：语言对结果不作任何规定，可能打印乱码，可能崩溃，也可能“看起来正常”。</div>
+<h3>读完你会理解</h3>
+<ol>
+<li>为什么打印出的不是 <code>l</code>：一个已经过期的引用，在机器码里是怎么被读出来的（第 1、2、5 节）；</li>
+<li>Rust 用什么防止这种情况：生命周期是编译器的“有效期证明”（第 3 节）；</li>
+<li>这份证明在哪里漏了（第 4 节）；</li>
+<li>为什么漏了之后，程序运行时不会报错（第 6 节）。</li>
+</ol>
+<p class="note">为了让汇编短到能逐条读完，第 4 节起改用精简版 <code>src/demo.rs</code>：把 <code>Mutex/Vec/Box/Any</code> 换成一个全局指针槽位，取回时用了一处裸指针解引用。缺陷机制和症状与原始版相同；“safe Rust 也能触发”由上面的原始版证明。附录供想核验证据的读者使用。</p>
+<details><summary>赶时间？先看一页结论</summary>
+<div class="cards">
+<div class="card c1"><h4>① 漏洞在哪：编译期</h4><p><code>struct Q&lt;'a: 'static&gt;</code> 要求里面的引用活到程序结束。直接写 <code>Q(Some(&amp;l))</code> 会被 E0597 拒绝；先写 <code>Q(None)</code> 再写 <code>q.0 = Some(&amp;l)</code>，这条约束就没有被检查。</p></div>
+<div class="card c2"><h4>② 汇编里的表现：没有可疑指令</h4><p><code>&amp;l</code> 就是一条 <code>lea</code> 算出的栈地址。<code>'static</code> 转换没有生成任何指令。<code>Drop</code> 把这个地址 <code>mov</code> 进全局变量，随后 <code>l</code> 被 <code>dealloc</code>。之后读取时，CPU 和运行时都无从判断它已经失效。</p></div>
+<div class="card c3"><h4>③ 症状：取决于那块内存后来装了什么</h4><p>O0 打印 32 个 <code>X</code>（与 <code>z</code> 复用了已释放的堆块一致）。O2 打印的 32 字节是格式化函数自己的机器码，因为旧栈槽被 <code>println!</code> 的参数复用了。ASan 报告 <code>stack-use-after-scope</code>。</p></div>
+</div>
+<div class="chain"><span>Q(None)：约束只在这里检查</span><i>→</i><span class="bad">q.0 = Some(&amp;l)：漏检</span><i>→</i><span>Drop：<code>mov [KEPT], A</code></span><i>→</i><span>l 析构：<code>dealloc(H)</code></span><i>→</i><span class="bad">按 String 读 A：<code>[A+8]</code>、<code>[A+16]</code></span></div>
+
+</details>
+</section>
+
+<section id="memory"><h2>1 · 内存基础：变量、地址、栈和堆</h2>
+<h3>1.1 地址就是一个编号</h3>
+<p>可以把内存看成一个很长的字节数组，每个字节有一个编号，这个编号就是地址。在 x86-64 上，地址是一个 8 字节的整数。一个变量就是一段连续的字节；编译器决定它放在哪里。</p>
+<ul>
+<li>栈：函数的局部变量放在这里。每个函数调用有一块“栈帧”，编译器用 <code>rbp</code> 寄存器记住栈帧的基址，变量的位置写成 <code>rbp-偏移</code>，比如 <code>rbp-0x20</code>。函数返回时整块栈帧被收回。</li>
+<li>堆：大小在运行时才确定的数据放在这里，比如字符串的内容。由分配器管理：<code>alloc</code> 申请一块，<code>dealloc</code> 归还一块。</li>
+</ul>
+<p>引用（<code>&amp;T</code>）和指针在机器上就是一个地址，不带任何别的信息。</p>
+
+<h3>1.2 本文需要的全部汇编知识</h3>
+<div class="kv">
+<code>[X]</code><span>地址 X 处的 8 字节内存；<code>[rax+8]</code> 即“rax 指向的对象的第 2 个字”</span>
+<code>lea r, [X]</code><span>只计算地址 X 放进 r，不读内存，相当于 Rust 的 <code>&amp;</code></span>
+<code>mov a, b</code><span>把 b 复制到 a（寄存器或内存）</span>
+<code>rbp</code><span>当前栈帧的基址；局部变量表示为 <code>rbp-偏移</code></span>
+<code>rdi / rsi / rdx</code><span>函数第 1 / 2 / 3 个参数；<code>rax</code> 是返回值（x86-64 SysV 调用约定）</span>
+<code>call / jmp / ret</code><span>调用 / 跳转 / 返回</span>
+</div>
+
+<h3>1.3 一个 String 是两层内存</h3>
+<p><code>String</code> 本身是栈上的 3 个机器字：容量、指向堆的指针、长度。字符内容在堆上。在本份 O2 产物中，变量 <code>l</code> 占 <code>rbp-0x20</code> 起的 24 字节。后文记号：<b>A</b> = <code>l</code> 的栈地址（也就是 <code>&amp;l</code> 的值），<b>H</b> = 堆上字符的地址，<b>F</b> = 格式化函数 <code>&lt;&amp;String as Display&gt;::fmt</code> 的地址（<code>0x13eb0</code>）。</p>
+<figure>
+<svg viewBox="0 0 860 210" width="100%" role="img" aria-label="String 的栈与堆布局">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="svg-arrowhead"/></marker></defs>
+<text x="20" y="22" class="svg-m">栈（main 的栈帧）</text>
+<rect x="20" y="34" width="210" height="38" class="svg-cell"/><text x="32" y="58" class="svg-t">rbp-0x28  q = A</text>
+<rect x="20" y="84" width="210" height="34" class="svg-cell"/><text x="32" y="106" class="svg-t">rbp-0x20  cap = 32</text>
+<rect x="20" y="118" width="210" height="34" class="svg-cell"/><text x="32" y="140" class="svg-t">rbp-0x18  ptr = H</text>
+<rect x="20" y="152" width="210" height="34" class="svg-cell"/><text x="32" y="174" class="svg-t">rbp-0x10  len = 32</text>
+<text x="240" y="140" class="svg-m">← l: String（A = rbp-0x20）</text>
+<path d="M230,53 C270,53 270,92 236,96" class="svg-arrow" marker-end="url(#ah)"/><text x="276" y="62" class="svg-m">&amp;l 的值就是 A</text>
+<path d="M230,135 C420,135 470,100 540,100" class="svg-arrow" marker-end="url(#ah)"/>
+<text x="545" y="22" class="svg-m">堆</text>
+<rect x="545" y="80" width="300" height="40" rx="4" class="svg-heap"/><text x="556" y="105" class="svg-t">H: "hello world, this is long…"</text>
+<text x="556" y="140" class="svg-m">32 字节，由 l 拥有，l 析构时释放</text>
+<rect x="545" y="160" width="300" height="34" rx="4" class="svg-box"/><text x="556" y="182" class="svg-t">全局 KEPT（.bss 0x56228）</text>
+</svg>
+<figcaption>字段顺序（cap, ptr, len）是这一次编译的实际布局，不是 Rust 承诺的 ABI。</figcaption></figure>
+
+<h3>1.4 两个会决定症状的事实</h3>
+<ul>
+<li>释放不等于清零。<code>dealloc</code> 把这块堆内存还给分配器，内容原样留着。下一次申请同样大小的内存，分配器很可能把同一块交出去。</li>
+<li>作用域结束也不清零。变量离开作用域后，它占的栈字节也原样留着，但编译器可以把这段栈空间分给后面别的变量（<b>栈槽复用</b>）。这是正常、合法的优化。</li>
+</ul>
+<p>所以，一个地址“还能读出东西”，不能说明它指向的对象还活着。</p>
+</section>
+
+<section id="ownership"><h2>2 · 所有权与析构：谁在什么时候释放内存</h2>
+<ul>
+<li>每个值只有一个所有者。<code>let l = String::from(..)</code> 之后，<code>l</code> 拥有那个 String，也就拥有那块堆内存 H。</li>
+<li>所有者离开作用域时，值被自动析构（drop）。String 的析构就是 <code>dealloc(H)</code>。</li>
+<li>同一作用域里按声明的相反顺序析构，后声明的先析构。</li>
+<li>类型可以实现 <code>Drop</code> 来自定义析构代码，析构时自动运行。</li>
+<li>引用不拥有对象。<code>&amp;l</code> 是借用，复制它不会让 <code>l</code> 晚一点析构。</li>
+</ul>
+<pre><code>{
+    let l = String::from("hello world, this is long enough");  // 先声明 l
+    let mut q = Q(None);                                         // 后声明 q
+    q.0 = Some(&amp;l);
+}   // 块结束：先 drop(q) → 运行 Q 的 Drop 代码；再 drop(l) → dealloc(H)</code></pre>
+<p>本例的 <code>Q</code> 有自定义 <code>Drop</code>：它把自己存着的引用放进全局变量 <code>KEPT</code>。块结束后 <code>l</code> 已经析构，<code>KEPT</code> 却还存着 <code>l</code> 的地址，这就是一个<b>悬垂引用</b>。</p>
+<p>生命周期就是用来阻止这种情况的。</p>
+</section>
+
+<section id="lifetime"><h2>3 · 生命周期：编译器的“有效期证明”</h2>
+<p>Rust 不在运行时跟踪对象是否还活着，而是在编译时证明：每个引用被使用时，它指向的对象一定还活着。这份证明里用到的“有效期”就是生命周期。</p>
+
+<h3 id="lifetime-syntax">3.1 这些写法怎么读</h3>
+<div class="table-scroll"><table><thead><tr><th>写法</th><th>含义</th><th>在本例中</th></tr></thead><tbody>
+<tr><td><code>'a</code></td><td><b>生命周期参数</b>，以 <code>'</code> 开头的名字。它代表一段代码范围：“被引用的对象在这段范围内一定有效”。具体有多长由编译器推断，程序员只负责起名字和写约束。</td><td><code>Q&lt;'a&gt;</code> 中 <code>'a</code> 是“q.0 里那个引用保证有效的范围”。</td></tr>
+<tr><td><code>'static</code></td><td>内置的特殊生命周期，表示整个程序运行期间。字符串字面量、<code>static</code> 变量的引用都是 <code>&amp;'static</code>。</td><td><code>KEPT</code> 是全局的，存进去的引用必须 <code>'static</code>，否则以后读到的可能是已释放的对象。</td></tr>
+<tr><td><code>&amp;'a String</code></td><td>指向 <code>String</code> 的共享引用，编译器承诺这个 String 在 <code>'a</code> 范围内一直有效。</td><td><code>&amp;l</code> 的真实生命周期只到内层块结束（第 32 行）。</td></tr>
+<tr><td><code>'a: 'b</code></td><td><b>outlives 约束</b>，读作“<code>'a</code> 至少和 <code>'b</code> 一样长”。</td><td><code>struct Q&lt;'a: 'static&gt;</code>：<code>'a</code> 必须覆盖整个程序运行期。</td></tr>
+<tr><td><code>impl&lt;'a: 'static&gt; Drop for Q&lt;'a&gt;</code></td><td>在这个实现块内部，可以把 <code>'a: 'static</code> 当作已知事实使用。</td><td>第 16 行能通过检查，靠的就是这个前提。</td></tr>
+</tbody></table></div>
+
+<h3>3.2 长可以当短用，短不能当长用</h3>
+<p>活得久的对象，在一段较短的范围里当然也有效；反过来不行。所以编译器自动允许把 <code>&amp;'static String</code> 当作更短的 <code>&amp;'a String</code> 使用，反方向则会报错。用术语说，<code>&amp;'long T</code> 是 <code>&amp;'short T</code> 的<b>子类型</b>。</p>
+<pre><code>static S: String = String::new();
+let r: &amp;'static String = &amp;S;
+
+{
+    let local = String::from("x");
+    let mut short: &amp;String = &amp;local;
+    short = r;          // ✓ 长 → 短：S 活到程序结束，在这个块里当然有效
+}
+
+let mut long: &amp;'static String = r;
+{
+    let local = String::from("x");
+    long = &amp;local;      // ✗ E0597：短 → 长，local 在块结束就析构了
+}</code></pre>
+
+<h3>3.3 协变：把“长可以当短用”推广到外层类型</h3>
+<p>如果一个类型里面装着 <code>&amp;'a T</code>，比如 <code>Option&lt;&amp;'a String&gt;</code> 或本例的 <code>Q&lt;'a&gt;</code>，那么 <code>Q&lt;'long&gt;</code> 能不能当 <code>Q&lt;'short&gt;</code> 用？</p>
+<p>如果类型对这个引用只是存着、读出，答案是能。这种性质叫<b>协变（covariance）</b>：外层类型跟着里面的引用一起，“长可以当短用”。<code>Option&lt;&amp;'a T&gt;</code> 和 <code>Q&lt;'a&gt;</code> 都对 <code>'a</code> 协变。</p>
+<pre><code>let a: Q&lt;'static&gt; = Q(None);
+let b: Q&lt;'short&gt;  = a;     // 协变：允许把生命周期“缩短”（示意：'short 无法直接写在代码里）</code></pre>
+<p>直觉上这很安全：证明说“活到程序结束”，而你只依赖“活到块结束”，当然成立。（Rust 里也有不允许这样缩短的情况，比如通过 <code>&amp;mut T</code> 访问的 <code>T</code> 是<b>不变</b>的，本文不涉及。）</p>
+<div class="note">本例有一点不同：<code>Q</code> 的声明带着约束 <code>'a: 'static</code>，即任何 <code>Q&lt;'x&gt;</code> 都要求 <code>'x</code> 覆盖整个程序。协变把 <code>Q&lt;'static&gt;</code> 缩短成 <code>Q&lt;'short&gt;</code> 时，得到的类型本身就违反了这条约束，按语言规则它不应该被接受。记住这一点，第 4 节就是在这里出的问题。</div>
+
+<h3>3.4 结构体约束，和 Drop 对它的依赖</h3>
+<p><code>struct Q&lt;'a: 'static&gt;</code> 想保证：Q 里装的引用一定活到程序结束。<code>impl&lt;'a: 'static&gt; Drop for Q&lt;'a&gt;</code> 在实现块内部就把这条约束当作已知事实，所以 Drop 里可以写：</p>
+<pre><code>let  s        :  &amp;'static String   =  s ;
+│    │           │                     └─ 右边：上一行 if let Some(s) 绑定的旧 s，类型 &amp;'a String
+│    │           └─ 类型标注：要求新 s 是“整个程序期间都有效”的 String 引用
+│    └─ 新变量 s，遮蔽（shadow）同名的旧 s
+└─ 声明新绑定</code></pre>
+<p>这一行不改变值，新 s 和旧 s 是同一个地址。它要求编译器把这个引用当作 <code>&amp;'static String</code> 来用。编译器接受的条件只有一个：能证明 <code>'a: 'static</code>。</p>
+<ul>
+<li>长变短，编译器自动允许：<code>&amp;'static String</code> 可以直接当 <code>&amp;'a String</code> 用：活得久的对象，在较短范围内当然也有效。这叫子类型（subtyping）。</li>
+<li>短变长，必须有证明：<code>&amp;'a String</code> 当 <code>&amp;'static String</code> 用，只有在 <code>'a: 'static</code> 成立时才行。这里的证明来自 impl 头的 <code>'a: 'static</code>：在实现块内部它是一个假设，编译器不会再去检查它。检查它的责任在创建和修改 <code>Q&lt;'a&gt;</code> 的地方，也就是 <code>main</code> 里。</li>
+</ul>
+<p>本例的问题出在 <code>main</code>：<code>q.0 = Some(&amp;l)</code> 本该检查却漏掉了，<code>Drop</code> 里的假设于是不成立。第 16 行本身符合类型规则，编译器不会在这里报错。</p>
+<p class="muted">打个比方：引用像一个门牌号，生命周期是编译器替它签发的“有效期证明”。证明记在编译器的账本上，门牌上不写有效期。<code>let s: &amp;'static String = s;</code> 是在账本上换了一张更长的证明，门牌号本身一个字都没改。</p>
+
+<h3>3.5 规则正常工作时：直接构造会被拒绝</h3>
+<pre><code>let l = String::from("hello");
+let _q = Q(Some(&amp;l));</code></pre>
+<pre><code>error[E0597]: `l` does not live long enough
+8 |     let _q = Q(Some(&amp;l));
+  |                -----^^-
+  |                |    |
+  |                |    borrowed value does not live long enough
+  |                this usage requires that `l` is borrowed for `'static`
+note: requirement that the value outlives `'static` introduced here
+2 | struct Q&lt;'a: 'static&gt;(Option&lt;&amp;'a String&gt;);</code></pre>
+<p class="source">来源：<code>rejected/rejected.rs</code> 与 <code>out/rejected.compile_error.txt</code>（节选）。编译器正确地指出：Q 要求 <code>'static</code>，而 <code>l</code> 活不了那么久。</p>
+</section>
+
+<section id="bug"><h2>4 · 漏洞：换一种写法，检查就漏了</h2>
+<div class="vs">
+<div><h4>被拒绝（正确）</h4><pre><code>let l = String::from("hello");
+let _q = Q(Some(&amp;l));
+// E0597</code></pre></div>
+<div><h4>被接受（缺陷）</h4><pre><code>let l = String::from("hello world, …");
+let mut q = Q(None);
+q.0 = Some(&amp;l);
+// 编译通过</code></pre></div>
+</div>
+<p>两段代码做的是同一件事：让 <code>q</code> 装着 <code>&amp;l</code>。区别在于引用是构造时放进去的，还是构造后再赋值的。按照编译器实际产生的约束（附录 A0），它对右边这段代码的推理大致是：</p>
+<ol class="reason">
+<li><code>Q(None)</code>：<code>None</code> 里没有引用，这个值的类型可以是 <code>Q&lt;'static&gt;</code>，满足 <code>'a: 'static</code>。<span class="ok">✓ 检查通过</span></li>
+<li><code>let mut q = …</code>：由于协变（3.3），变量 <code>q</code> 的类型可以比右边“短”。编译器给 <code>q</code> 推断出一个只覆盖内层块的生命周期，记作 <code>'q</code>，所以 <code>q: Q&lt;'q&gt;</code>。这时本该检查 <code>'q: 'static</code>。<span class="bad">✗ 这一步漏了</span></li>
+<li><code>q.0 = Some(&amp;l)</code>：字段类型是 <code>Option&lt;&amp;'q String&gt;</code>，只要求 <code>l</code> 活过 <code>'q</code>。<code>l</code> 确实活到块结束。<span class="ok">✓ 检查通过</span></li>
+<li>块结束 <code>drop(q)</code>：Drop 按 3.4 的假设，把 <code>&amp;l</code> 当 <code>&amp;'static</code> 存进 <code>KEPT</code>。</li>
+<li>接着 <code>drop(l)</code>：<code>KEPT</code> 里留下悬垂引用。之后的读取就是 use-after-scope（作用域结束后的访问）。</li>
+</ol>
+<figure>
+<svg viewBox="0 0 860 200" width="100%" role="img" aria-label="各生命周期在源码行上的覆盖范围">
+<text x="150" y="22" class="svg-m">第 29 行</text><text x="370" y="22" class="svg-m">第 32 行 }</text><text x="560" y="22" class="svg-m">第 35、36 行 读 KEPT</text><text x="770" y="22" class="svg-m">程序结束</text>
+<line x1="400" y1="30" x2="400" y2="190" style="stroke:var(--muted);stroke-dasharray:3 4"/>
+<line x1="600" y1="30" x2="600" y2="190" style="stroke:var(--bad);stroke-dasharray:3 4"/>
+<text x="10" y="56" class="svg-t">'static</text><rect x="150" y="42" width="680" height="20" rx="4" class="svg-static"/>
+<text x="10" y="96" class="svg-t">l 真实寿命</text><rect x="150" y="82" width="250" height="20" rx="4" class="svg-heap"/>
+<text x="10" y="136" class="svg-t">'q（q 的类型）</text><rect x="190" y="122" width="210" height="20" rx="4" class="svg-qvar"/>
+<text x="10" y="176" class="svg-t">KEPT 的使用</text><rect x="580" y="162" width="40" height="20" rx="4" style="fill:var(--bad-bg);stroke:var(--bad)"/>
+<text x="630" y="177" class="svg-badt">l 已不存在</text>
+</svg>
+<figcaption><code>&amp;l</code> 只需覆盖 <code>'q</code>（橙色），它确实覆盖了，所以第 3 步通过。但 Drop 把它当作覆盖 <code>'static</code>（绿色）来用，而 <code>l</code> 的真实寿命（浅绿）在第 32 行就结束了。</figcaption></figure>
+<div class="callout">归结起来，<code>'a: 'static</code> 只在 <code>Q(None)</code> 被构造的那一刻检查过；协变把 <code>q</code> 的类型缩短之后，没有人再检查缩短后的类型是否仍然满足约束。字段赋值就从这个缺口把局部引用放了进去。</div>
+<p class="note">第 2 步的说法来自编译器的 NLL 约束输出（约束图和原文见附录 A0、附录 A），它说明了“哪条约束缺失”，但没有定位 rustc 源码中具体是哪段代码漏检。原始版用的是类型参数 <code>Q&lt;T: 'static&gt;</code>，<code>T = &amp;String</code>，同样是协变加字段赋值的模式。</p>
+</section>
+
+<section id="lab"><h2>5 · 机器码如何执行这个错误的程序</h2>
+<p>编译器接受程序之后，代码生成照常进行。本节在 O2 的机器码里跟踪三件事：地址怎么被保存，对象怎么被析构，旧地址后来被当成什么读取。</p>
+<h3>5.1 逐步对照：源码一行 ↔ 汇编几条 ↔ 内存变化（O2）</h3>
+<p>O2 的 <code>main</code> 只有约 40 条指令。点击左侧带行号的源码，或用下方按钮（键盘 ← →）逐步执行，中间高亮对应的汇编，底部给出这一步之后的栈与全局内存。</p>
+<div class="lab">
+<div><div class="panel-title">src/demo.rs（可点击）</div><div class="codebox" id="src"></div></div>
+<div><div class="panel-title">x86-64 O2 反汇编（out/demo_O2.objdump，附中文注释）</div><div class="codebox" id="asm"></div></div>
+</div>
+<div class="stepper" id="stepper">
+<div class="stepper-head"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="tag" id="st-tag"></span><h3 id="st-title"></h3></div>
+<div class="btns"><button id="prev" type="button">← 上一步</button><button id="next" type="button">下一步 →</button></div></div>
+<div class="dots" id="dots"></div>
+<div class="step-body"><div class="step-text" id="st-text"></div>
+<div><div class="panel-title">这一步之后的内存</div><table class="mem" id="mem"></table>
+<div class="legend"><span><b style="background:var(--ok-bg)"></b>有效</span><span><b style="background:var(--new-bg)"></b>本步写入</span><span><b style="background:var(--warn-bg)"></b>已失效（字节残留）</span><span><b style="background:var(--bad-bg)"></b>被复用 / 危险</span></div></div></div>
+</div>
+<noscript><p class="note">交互对照需要 JavaScript。下方“全部步骤一览”表包含同样的对应关系。</p></noscript>
+<h3>全部步骤一览</h3>
+<div class="table-scroll"><table id="steptable"><thead><tr><th>#</th><th>源码</th><th>关键汇编</th><th>发生了什么</th></tr></thead><tbody></tbody></table></div>
+
+<h3>5.2 找不到“错误指令”：Rust 语义与机器码的逐项对应</h3>
+<div class="table-scroll"><table><thead><tr><th>Rust 中的语义</th><th>O2 汇编里对应的东西</th><th>说明</th></tr></thead><tbody>
+<tr><td><code>struct Q&lt;'a: 'static&gt;</code> 的约束</td><td class="noinstr">无指令</td><td>这是编译期要满足的条件，编译通过后就不再存在。</td></tr>
+<tr><td><code>Q(None)</code></td><td class="noinstr">无指令</td><td>写入 null 的动作被下一条覆盖，优化后删除。<code>Option&lt;&amp;T&gt;</code> 用 null 表示 <code>None</code>，<code>Some(A)</code> 就是 A。</td></tr>
+<tr><td><code>q.0 = Some(&amp;l)</code></td><td><code>lea rax,[rbp-0x20]</code> / <code>mov [rbp-0x28],rax</code></td><td>就是“取地址、存起来”。缺陷从这里进入运行时：编译器本应拒绝，但生成了这两条指令。</td></tr>
+<tr><td><code>let s: &amp;'static String = s;</code></td><td class="noinstr">无指令</td><td>类型变了，值没变。没有任何复制或延寿动作。</td></tr>
+<tr><td><code>KEPT.store(…)</code></td><td><code>mov [rip+0x42385],rax</code></td><td>Relaxed 原子存储在 x86 上就是普通 <code>mov</code>。原子性只保证读写本身不撕裂，不保证被指向的对象还活着。</td></tr>
+<tr><td><code>}</code>：l 析构</td><td><code>call __rust_dealloc(H,32,1)</code></td><td>释放堆字符。KEPT 没有被清空，此后 KEPT 中的 A 是悬垂地址。</td></tr>
+<tr><td>l 的栈槽失效（MIR 中的 <code>StorageDead</code>）</td><td class="noinstr">无指令</td><td>不清零，但允许编译器把这 24 字节分给别的值。O2 马上这么做了。</td></tr>
+<tr><td><code>println!("{}", s)</code> 读 s</td><td><code>mov rdi,[rax+0x8]</code> / <code>mov rsi,[rax+0x10]</code></td><td>按 String 布局读 ptr 和 len。rax = A，失效内存就在这里被读取。</td></tr>
+</tbody></table></div>
+<div class="callout">每条指令单独看都没有错。这些指令只有在“A 指向一个活着的 String”这个前提下才组成正确的程序，而这个前提本该由编译期证明。证明有缺口，指令就照着错误的前提执行。</div>
+
+<h3>5.3 O2 的输出：程序打印出了“正在打印它的那个函数”的机器码</h3>
+<p>到 <code>println!</code> 时，A 处的 24 字节已经被复用成 <code>fmt::Argument</code>：<code>[A]</code> = &amp;s，<code>[A+8]</code> = F（格式化函数地址），<code>[A+16]</code> 仍残留着旧长度 32。<code>fmt</code> 把 A 当 String 读，得到“字符指针 = F，长度 = 32”，于是把 F 开始的 32 字节写到标准输出。这 32 字节就是 <code>fmt</code> 自己：</p>
+<div class="bytes">
+<div class="grp g5">55<small>push rbp</small></div>
+<div class="grp g5">48 89 e5<small>mov rbp,rsp</small></div>
+<div class="grp g5">48 89 f2<small>mov rdx,rsi</small></div>
+<div class="grp g1">48 8b 07<small>rax = [rdi] = A</small></div>
+<div class="grp g3">48 8b 78 08<small>rdi = [A+8] → F</small></div>
+<div class="grp g3">48 8b 70 10<small>rsi = [A+16] → 32</small></div>
+<div class="grp g5">5d<small>pop rbp</small></div>
+<div class="grp g4">ff 25 6f 01 04 00<small>jmp 输出字符</small></div>
+<div class="grp g5">cc ×7<small>int3 填充</small></div>
+</div>
+<p class="source">左：<code>out/demo_O2.stdout.xxd.txt</code> 的 32 字节（不含换行）；右：<code>out/demo_O2.objdump</code> 中 <code>0x13eb0</code> 处反汇编，逐字节一致。红色两条就是“按旧类型读新数据”的那两次读取。</p>
+<p>这里 CPU 没有执行失效数据，而是把一段代码当成字符串读了出来。F 在正常流程里确实是格式化函数，它又被误当成了字符数据的地址。</p>
+
+<h3>5.4 同一缺陷，O0 与 O2 症状不同</h3>
+<div class="vs">
+<div><h4>O0：栈对象还在，堆块被复用</h4>
+<p><code>l</code> 在 <code>[rbp-0xa0]</code>，<code>z</code> 在 <code>[rbp-0x80]</code>，两者栈槽不同。析构 <code>l</code> 不会清零它的 24 字节，所以读 <code>[A+8]</code> 仍得到旧的 H。但 H 已经释放，紧接着 <code>z</code> 申请了同样大小的 32 字节。</p>
+<span class="big">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</span>
+<p class="muted">与“分配器把 H 分给了 z”一致。项目没有保存堆地址记录，这一点是推断，未直接观测。</p></div>
+<div><h4>O2：栈槽被复用，指针字被覆盖</h4>
+<p><code>z</code> 从未被读取，整个被优化掉（只剩一次分配器钩子调用）。<code>l</code> 的旧栈槽被分给 <code>println!</code> 的参数，<code>[A+8]</code> 从 H 变成了 F。</p>
+<span class="big">UH..H..H..H.x.H.p.].%o..........</span>
+<p class="muted">xxd 的 ASCII 栏（不可打印字节显示为 <code>.</code>），即上面解码的 32 字节机器码。</p></div>
+</div>
+<p class="note">两种输出都不是程序“应有”的结果，换编译器版本、分配器或参数都可能变成别的内容，甚至崩溃。打印出看似正常的字符，也不能说明引用有效。原始 safe 版（<code>issue_original</code>）的 O0/O2 输出与精简版是同一模式，记录见附录 B1。</p>
+</section>
+
+<section id="erasure"><h2>6 · 为什么运行时发现不了</h2>
+<h3>6.1 生命周期在生成机器码之前就被擦除了</h3>
+<div class="pipe">
+<div><b>源码</b><span>写出 <code>'a</code>、<code>'static</code></span></div><i>→</i>
+<div class="hot"><b>借用检查（NLL）</b><span>在 MIR 上求解所有生命周期约束，生命周期只在这一步用到</span></div><i>→</i>
+<div><b>擦除生命周期</b><span>所有 <code>'a</code>/<code>'static</code> 变成同一个“已擦除”标记</span></div><i>→</i>
+<div><b>优化 MIR → LLVM IR</b><span>引用就是 <code>ptr</code></span></div><i>→</i>
+<div><b>汇编</b><span>8 字节地址</span></div>
+</div>
+<p>借用检查结束后，rustc 把所有生命周期擦除，后面的阶段看到的就是“一个引用”。所以：</p>
+<ul>
+<li>3.4 里的 <code>let s: &amp;'static String = s;</code> 在 O0 和 O2 的汇编里都是 0 条指令；</li>
+<li><code>&amp;'a String</code> 与 <code>&amp;'static String</code> 都是 8 字节地址，内存里没有地方存“有效期”；</li>
+<li>泛型 <code>Q&lt;'a&gt;</code> 不论 <code>'a</code> 是什么，二进制里都只有一份 <code>Q::drop</code>。Rust 规定生命周期不能影响生成的代码，所以才能整体擦除。</li>
+</ul>
+<p class="source">逐层证据（借用检查用的 MIR → 代码生成用的 MIR → 汇编中第 16 行如何消失）见附录 A0。</p>
+
+<h3>6.2 运行时能查什么，查不了什么</h3>
+<div class="table-scroll"><table><thead><tr><th>检查项</th><th>能否只看地址值判断</th><th>本例中</th></tr></thead><tbody>
+<tr><td>空指针</td><td>能：地址是否为 0</td><td>O0 的 <code>read_kept</code> 有 <code>cmp rax,0x0</code></td></tr>
+<tr><td>对齐</td><td>能：地址低 3 位是否为 0</td><td>O0 的 <code>read_kept</code> 有 <code>and rax,0x7</code></td></tr>
+<tr><td>对象是否还活着</td><td>不能：需要知道这块内存当前归谁，而这份信息只存在于编译期</td><td>没有任何检查，A 照常被读取</td></tr>
+</tbody></table></div>
+<p>因此借用检查一旦漏检，结果不是 panic 或报错，而是未定义行为：机器码照常执行，读到什么取决于那块内存后来被谁用了（5.4）。</p>
+
+<h3>6.3 ASan：额外加一层运行时记录，才能抓到</h3>
+<p>AddressSanitizer（ASan）是一种调试工具：编译时在每次内存访问前插入检查，并为每块栈和堆内存维护一份“影子内存”，记录它当前是否有效。普通构建没有这层记录，ASan 构建有。</p>
+<p>用 ASan 运行原始 safe 版，报告 <code>stack-use-after-scope</code>：一次 8 字节读取，位于栈帧偏移 264；变量 <code>l</code> 占 <code>[256, 280)</code>。<code>264 − 256 = 8</code>，也就是 String 的第二个字（指针字），与 5.2 表中 <code>mov rdi,[rax+0x8]</code> 这类读取一致。ASan 栈未符号化，不能精确对应到非 ASan 二进制的某条指令。完整报告见附录 B2。</p>
+
+<div class="callout">把前面几节连起来：
+<ol style="margin:6px 0 0">
+<li>引用在机器上就是地址；对象析构后，地址和内存里的旧字节都还在（第 1、2 节）。</li>
+<li>防止悬垂引用的唯一机制是编译期的生命周期证明（第 3 节）。</li>
+<li>#164250 是这份证明的一个缺口：<code>'a: 'static</code> 在构造时检查了，协变缩短类型后没有再检查，字段赋值把局部引用放了进去（第 4 节）。</li>
+<li>缺口一旦放行，后面每条机器指令都“正确”：取地址、存全局、释放、复用栈槽、按旧类型读取（第 5 节）。</li>
+<li>生命周期已被擦除，运行时没有任何防线，结果是未定义行为。O0 的 <code>X</code> 和 O2 的机器码，是同一个悬垂地址在不同内存布局下读到的不同内容（第 6 节）。</li>
+</ol></div>
+<p class="source">上游：<a href="https://github.com/rust-lang/rust/issues/164250">rust-lang/rust #164250</a>（2026-10-14 查阅时为 Open，标记 I-unsound、P-high）。本文结论来自本地材料，不推断修复进度或其他版本的表现。</p>
+</section>
+
+<section id="compiler-view"><h2>附录 A0 / 编译器视角：生命周期的擦除与缺失的约束</h2>
+<p>本附录给想核验第 4、6 节说法的读者，涉及编译器内部表示 MIR 和 NLL（非词法生命周期借用检查器）。<code>'?N</code> 是编译器给每个待求解生命周期起的编号。</p>
+<h3>A0.1 第 16 行怎样逐层消失</h3>
+<p>本项目的产物可以逐层看到第 16 行是怎么消失的：</p>
+<div class="table-scroll"><table><thead><tr><th style="width:22%">阶段</th><th>第 16 行变成了什么</th></tr></thead><tbody>
+<tr><td>借用检查用的 MIR<br><span class="muted">out/mir/demo.{impl#0}-drop…nll.0.mir</span></td><td><pre><code>_4 = &amp;(*_3);
+AscribeUserType(_4, o, UserTypeProjection { base: UserType(1), .. });
+//   UserType(1) = &amp;'static String
+| '?14: '?18 due to TypeAnnotation(Ascription)  (demo.rs:16:20)
+| '?18: '?0  ...                                  ('?0 = 'static)</code></pre><code>AscribeUserType</code> 是只给借用检查器看的语句，意思是“检查 <code>_4</code> 的类型符合标注 <code>&amp;'static String</code>”。它变成了一条约束：<code>'a</code> 必须 outlive <code>'static</code>。</td></tr>
+<tr><td>交给代码生成的 MIR<br><span class="muted">out/demo_O0.mir</span></td><td><pre><code>fn &lt;impl at src/demo.rs:11:1: 11:33&gt;::drop(_1: &amp;mut Q&lt;'_&gt;) -&gt; () {
+    scope 1 {
+        debug s =&gt; _3;
+        let _3: &amp;std::string::String;
+        scope 2 {
+            debug s =&gt; _3;      // 第 16 行的新 s 就是旧 s，同一个 _3
+        }
+    }
+fn read_kept() -&gt; &amp;String {  // 签名里的 'static 也没了</code></pre>
+<code>AscribeUserType</code> 和 <code>_4</code> 都被删掉了。类型里只剩 <code>&amp;std::string::String</code> 和 <code>Q&lt;'_&gt;</code>，看不到 <code>'static</code>。</td></tr>
+<tr><td>汇编<br><span class="muted">out/annotated/*.lined.txt</span></td><td>O0 和 O2 的反汇编里，标注为 <code>src/demo.rs:16</code> 的指令都是 0 条。O0 的 <code>Q::drop</code> 从第 14 行（取出 s）直接接到第 17 行（store）。</td></tr>
+</tbody></table></div>
+<p>还有两个旁证：</p>
+<ul>
+<li>布局相同：<code>&amp;'a String</code> 与 <code>&amp;'static String</code> 在 x86-64 上都是 8 字节，内存里没有地方可以存“有效期”。</li>
+<li>代码不随生命周期变化：泛型 <code>Q&lt;'a&gt;</code> 不管 <code>'a</code> 是什么，<code>demo_O2.objdump</code> 里都只有一份 <code>&lt;demo::Q as Drop&gt;::drop</code>。Rust 的设计规定生命周期不能影响生成的代码，所以 rustc 才能在代码生成前把它整体擦除。</li>
+</ul>
+<h3>A0.2 NLL 约束图：约束停在了 Q(None) 这个表达式上</h3>
+<p>下图取自 <code>demo.main</code> 的 NLL dump（附录 A 有全文）。箭头 <code>X → Y</code> 表示“X 必须比 Y 活得长”（<code>X: Y</code>）。</p>
+<figure>
+<svg viewBox="0 0 900 300" width="100%" role="img" aria-label="NLL 区域约束图">
+<defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="svg-arrowhead"/></marker>
+<marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--ok)"/></marker>
+<marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--bad)"/></marker></defs>
+<rect x="640" y="20" width="230" height="56" rx="8" class="svg-static"/><text x="655" y="44" class="svg-t">'?0 = 'static</text><text x="655" y="64" class="svg-m">全局区域</text>
+<rect x="330" y="20" width="230" height="56" rx="8" class="svg-node"/><text x="345" y="44" class="svg-t">'?5</text><text x="345" y="64" class="svg-m">Q(None) 这个值的类型参数</text>
+<path d="M560,48 L636,48" class="svg-okline" marker-end="url(#ah3)"/><text x="566" y="38" class="svg-okt">Predicate ✓</text>
+<rect x="330" y="150" width="230" height="56" rx="8" class="svg-qvar"/><text x="345" y="174" class="svg-t">'?24</text><text x="345" y="194" class="svg-m">变量 q 的类型参数，仅活在 bb1[5..=18]</text>
+<path d="M445,76 L445,146" class="svg-arrow" marker-end="url(#ah2)"/><text x="452" y="118" class="svg-m">Assignment（协变：Q&lt;'?5&gt; 赋给 Q&lt;'?24&gt;）</text>
+<path d="M560,178 C640,178 720,140 745,80" class="svg-bad" marker-end="url(#ah4)"/><text x="620" y="215" class="svg-badt">缺失：'?24 : 'static</text><text x="620" y="233" class="svg-badt">（Q&lt;'?24&gt; 自身的约束没被要求）</text>
+<rect x="20" y="150" width="230" height="56" rx="8" class="svg-node"/><text x="35" y="174" class="svg-t">'?6 → … → '?9</text><text x="35" y="194" class="svg-m">&amp;l 的借用，赋给 q.0</text>
+<path d="M250,178 L326,178" class="svg-arrow" marker-end="url(#ah2)"/><text x="256" y="168" class="svg-m">'?9 ↔ '?24</text>
+<text x="20" y="262" class="svg-m">结果：&amp;l 只需活过 '?24（内层块内）就满足所有约束 → 通过检查 → 生成 lea/mov。</text>
+<text x="20" y="284" class="svg-m">对照组 Q(Some(&amp;l))：借用链直接进入带 Predicate 的区域 → 被要求 : 'static → E0597。</text>
+</svg>
+<figcaption>区域编号只属于这份 dump。红色虚线是“按第 3.3、3.4 节的语义本应存在、dump 中找不到”的约束；它是根据 dump 推断的解释，不是 rustc 内部具体缺陷代码的定位。</figcaption></figure>
+<p>换成文字：<code>Q(None)</code> 产生的值类型是满足 <code>'static</code> 的 <code>Q&lt;'?5&gt;</code>；由于 <code>Q</code> 对 <code>'a</code> 协变，它可以赋给类型更“短”的变量 <code>q: Q&lt;'?24&gt;</code>。但 <code>Q&lt;'?24&gt;</code> 自己的约束 <code>'?24: 'static</code> 没有被检查。之后 <code>q.0 = Some(&amp;l)</code> 只需满足 <code>'?24</code>，局部引用就进去了，而 <code>Drop</code> 仍按 <code>'static</code> 处理它。</p>
+<div class="table-scroll"><table><thead><tr><th></th><th>拒绝组 <code>rejected.rs</code></th><th>缺陷组 <code>demo.rs</code></th></tr></thead><tbody>
+<tr><td>写法</td><td><code>let _q = Q(Some(&amp;l));</code></td><td><code>let mut q = Q(None);</code><br><code>q.0 = Some(&amp;l);</code></td></tr>
+<tr><td>&amp;l 的借用流向</td><td>直接进入构造表达式的区域 → <code>'static</code></td><td>进入变量 q 的区域 '?24，止步于此</td></tr>
+<tr><td>结果</td><td>E0597：<code>l</code> does not live long enough</td><td>编译通过，生成 <code>lea</code> + <code>mov</code></td></tr>
+</tbody></table></div>
+</section>
+
+<section id="mechanism"><h2>附录 A / 编译期证据：NLL MIR 与区域约束</h2>
+<p>声明 <code>'a: 'static</code> 要求 <code>'a</code> 至少覆盖静态生命周期。对当前的引用字段，这意味着被引用对象必须在整个静态生命周期内保持有效。这个约束不会在运行时分配内存、复制对象或给局部变量续命。</p>
+<div class="flow"><div class="step"><b>1 · 空值构造</b><code>Q(None)</code> 在构造点接受声明的约束。</div><div class="step"><b>2 · 字段赋值</b><code>q.0 = Some(&amp;l)</code> 填入局部引用。</div><div class="step"><b>3 · 析构逃逸</b>Drop 依赖静态约束，将引用保存在 KEPT。</div><div class="step"><b>4 · 作用域外访问</b>l 已析构，保存的地址仍被读取和格式化。</div></div>
+<h3>通过路径：构造约束与字段借用没有连到同一个静态要求</h3><p>下面是 <code>demo.main</code> 的 NLL dump 中与问题直接相关的约束。<code>'?0</code> 为全局区域；构造时 <code>'?5</code> 被要求 outlive 它。字段赋值的借用链则进入 <code>'?24</code>，其推导范围仅覆盖 <code>bb1[5..=18]</code>。</p>
+<pre><code>| &#x27;?5 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?6 | U0 | {bb1[5..=18]}
+| &#x27;?7 | U0 | {bb1[5..=18]}
+| &#x27;?8 | U0 | {bb1[5..=18]}
+| &#x27;?9 | U0 | {bb1[5..=18]}
+| &#x27;?24 | U0 | {bb1[5..=18]}
+| &#x27;?25 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?26 | U0 | {bb1[5..=18]}
+| &#x27;?27 | U0 | {bb1[5..=18]}
+| &#x27;?28 | U0 | {bb1[5..=18]}
+| &#x27;?5 live at {bb1[4]}
+| &#x27;?6 live at {bb1[10]}
+| &#x27;?7 live at {bb1[11]}
+| &#x27;?8 live at {bb1[12]}
+| &#x27;?9 live at {bb1[14]}
+| &#x27;?24 live at {bb1[5..=18]}
+| &#x27;?26 live at {bb1[13..=14]}
+| &#x27;?27 live at {bb1[12]}
+| &#x27;?28 live at {bb1[11]}
+| &#x27;?5: &#x27;?0 due to Predicate(src/demo.rs:9:14: 9:21 (#0)) at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| &#x27;?5: &#x27;?24 due to Assignment at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| &#x27;?6: &#x27;?28 due to Boring at Single(bb1[10]) (src/demo.rs:31:20: 31:22 (#0)
+| &#x27;?7: &#x27;?27 due to Usage at Single(bb1[11]) (src/demo.rs:31:20: 31:22 (#0)
+| &#x27;?8: &#x27;?26 due to Boring at Single(bb1[12]) (src/demo.rs:31:15: 31:23 (#0)
+| &#x27;?9: &#x27;?24 due to Boring at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| &#x27;?24: &#x27;?9 due to Boring at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| &#x27;?25: &#x27;?5 due to Boring at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| &#x27;?26: &#x27;?9 due to Assignment at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| &#x27;?27: &#x27;?8 due to Boring at Single(bb1[12]) (src/demo.rs:31:15: 31:23 (#0)
+| &#x27;?28: &#x27;?7 due to Boring at Single(bb1[11]) (src/demo.rs:31:20: 31:22 (#0)</code></pre>
+<p><code>'?25 → '?5 → '?0</code> 是空值构造链；<code>'?6 → '?28 → '?7 → '?27 → '?8 → '?26 → '?9 ↔ '?24</code> 是后续借用与赋值链。所保存的 dump 没有将这条短借用链约束到 <code>'?0</code>。这支持“字段赋值路径没有维护结构体声明约束”的解释；它还不是对 rustc 内部具体缺陷代码位置的定位。</p>
+<h3>拒绝路径：局部借用被构造约束传递到静态区域</h3>
+<pre><code>| &#x27;?4: &#x27;?11 due to Boring at Single(bb1[5]) (rejected/rejected.rs:8:21: 8:23 (#0)
+| &#x27;?5: &#x27;?10 due to Usage at Single(bb1[6]) (rejected/rejected.rs:8:21: 8:23 (#0)
+| &#x27;?6: &#x27;?9 due to Usage at Single(bb1[7]) (rejected/rejected.rs:8:16: 8:24 (#0)
+| &#x27;?7: &#x27;?0 due to Predicate(rejected/rejected.rs:2:14: 2:21 (#0)) at Single(bb1[9]) (rejected/rejected.rs:8:14: 8:25 (#0)
+| &#x27;?7: &#x27;?8 due to Assignment at Single(bb1[9]) (rejected/rejected.rs:8:14: 8:25 (#0)
+| &#x27;?9: &#x27;?7 due to Boring at Single(bb1[9]) (rejected/rejected.rs:8:14: 8:25 (#0)
+| &#x27;?10: &#x27;?6 due to Boring at Single(bb1[7]) (rejected/rejected.rs:8:16: 8:24 (#0)
+| &#x27;?11: &#x27;?5 due to Boring at Single(bb1[6]) (rejected/rejected.rs:8:21: 8:23 (#0)</code></pre>
+<p>对照组中的链为 <code>'?4 → '?11 → '?5 → '?10 → '?6 → '?9 → '?7 → '?0</code>，借用 <code>l</code> 因而必须满足静态要求，最终得到 E0597。区域编号只属于这份 dump，不适合跨编译器版本直接比较。</p>
+<h3>析构顺序在 MIR 中明确可见</h3>
+<pre><code>(_3.0: std::option::Option&lt;&amp;std::string::String&gt;) = move _5;
+drop(_3) -&gt; [return: bb2, unwind: bb13]; // q：先把引用保存到全局
+
+bb2: {
+    StorageDead(_3);
+    drop(_2) -&gt; [return: bb3, unwind: bb14]; // l：释放其字符串缓冲区
+}
+bb3: {
+    StorageDead(_2);
+    // 随后创建 z，再调用 read_kept()
+}</code></pre>
+<p class="source">上段为带说明的节选；变量对应关系为 <code>_2 = l</code>、<code>_3 = q</code>。</p>
+<details><summary>完整 NLL MIR：通过路径</summary><p class="source">来源：<a href="out/mir/demo.main.-------.nll.0.mir">out/mir/demo.main.-------.nll.0.mir</a></p><pre><code>// MIR for `main` 0 nll
+
+| Free Region Mapping
+| &#x27;?0 | Global | [&#x27;?0, &#x27;?1]
+| &#x27;?1 | Local | [&#x27;?1]
+|
+| Inferred Region Values
+| &#x27;?0 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?1 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?1}
+| &#x27;?2 | U0 | {bb0[2]}
+| &#x27;?3 | U0 | {bb0[2]}
+| &#x27;?4 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?5 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?6 | U0 | {bb1[5..=18]}
+| &#x27;?7 | U0 | {bb1[5..=18]}
+| &#x27;?8 | U0 | {bb1[5..=18]}
+| &#x27;?9 | U0 | {bb1[5..=18]}
+| &#x27;?10 | U0 | {bb3[3]}
+| &#x27;?11 | U0 | {bb3[3]}
+| &#x27;?12 | U0 | {bb5[7..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?13 | U0 | {bb5[14..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?14 | U0 | {bb5[14..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?15 | U0 | {bb5[14..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?16 | U0 | {bb5[15]}
+| &#x27;?17 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?18 | U0 | {bb6[1..=12], bb7[0..=4]}
+| &#x27;?19 | U0 | {bb6[6..=12], bb7[0..=4]}
+| &#x27;?20 | U0 | {bb6[7..=12], bb7[0..=4]}
+| &#x27;?21 | U0 | {bb6[10..=12], bb7[0..=4]}
+| &#x27;?22 | U0 | {bb6[11..=12], bb7[0..=4]}
+| &#x27;?23 | U0 | {bb6[12], bb7[0..=4]}
+| &#x27;?24 | U0 | {bb1[5..=18]}
+| &#x27;?25 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?26 | U0 | {bb1[5..=18]}
+| &#x27;?27 | U0 | {bb1[5..=18]}
+| &#x27;?28 | U0 | {bb1[5..=18]}
+| &#x27;?29 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?30 | U0 | {bb7[0..=4]}
+| &#x27;?31 | U0 | {bb5[9..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?32 | U0 | {bb5[9..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?33 | U0 | {bb5[8..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?34 | U0 | {bb5[8..=15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?35 | U0 | {bb6[2..=12], bb7[0..=4]}
+| &#x27;?36 | U0 | {bb6[0..=12], bb7[0..=4]}
+| &#x27;?37 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?38 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?39 | U0 | {bb6[8..=12], bb7[0..=4]}
+| &#x27;?40 | U0 | {bb6[7..=12], bb7[0..=4]}
+| &#x27;?41 | U0 | {bb6[12], bb7[0..=4]}
+| &#x27;?42 | U0 | {bb6[12], bb7[0..=4]}
+| &#x27;?43 | U0 | {bb6[11..=12], bb7[0..=4]}
+| &#x27;?44 | U0 | {bb6[11..=12], bb7[0..=4]}
+| &#x27;?45 | U0 | {bb0[2]}
+| &#x27;?46 | U0 | {bb3[3]}
+| &#x27;?47 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?48 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], &#x27;?0, &#x27;?1}
+| &#x27;?49 | U0 | {bb5[15]}
+| &#x27;?50 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?51 | U0 | {bb6[12], bb7[0..=4]}
+| &#x27;?52 | U0 | {bb5[15]}
+| &#x27;?53 | U0 | {bb5[15]}
+| &#x27;?54 | U0 | {bb6[12], bb7[0..=4]}
+| &#x27;?55 | U0 | {bb6[12], bb7[0..=4]}
+| &#x27;?56 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| &#x27;?57 | U0 | {bb7[4]}
+|
+| Inference Constraints
+| &#x27;?0 live at {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0]}
+| &#x27;?1 live at {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0]}
+| &#x27;?2 live at {bb0[2]}
+| &#x27;?3 live at {bb0[2]}
+| &#x27;?4 live at {bb1[3]}
+| &#x27;?5 live at {bb1[4]}
+| &#x27;?6 live at {bb1[10]}
+| &#x27;?7 live at {bb1[11]}
+| &#x27;?8 live at {bb1[12]}
+| &#x27;?9 live at {bb1[14]}
+| &#x27;?10 live at {bb3[3]}
+| &#x27;?11 live at {bb3[3]}
+| &#x27;?12 live at {bb5[7]}
+| &#x27;?13 live at {bb5[14]}
+| &#x27;?14 live at {bb5[14]}
+| &#x27;?15 live at {bb5[14]}
+| &#x27;?16 live at {bb5[15]}
+| &#x27;?17 live at {bb5[15]}
+| &#x27;?18 live at {bb6[1]}
+| &#x27;?19 live at {bb6[6]}
+| &#x27;?20 live at {bb6[7]}
+| &#x27;?21 live at {bb6[10]}
+| &#x27;?22 live at {bb6[11]}
+| &#x27;?23 live at {bb6[12]}
+| &#x27;?24 live at {bb1[5..=18]}
+| &#x27;?26 live at {bb1[13..=14]}
+| &#x27;?27 live at {bb1[12]}
+| &#x27;?28 live at {bb1[11]}
+| &#x27;?30 live at {bb7[0..=4]}
+| &#x27;?31 live at {bb5[9..=14]}
+| &#x27;?32 live at {bb5[9..=14]}
+| &#x27;?33 live at {bb5[8]}
+| &#x27;?34 live at {bb5[8]}
+| &#x27;?35 live at {bb6[2..=10]}
+| &#x27;?36 live at {bb6[0..=1]}
+| &#x27;?37 live at {bb5[15]}
+| &#x27;?38 live at {bb5[15]}
+| &#x27;?39 live at {bb6[8..=12]}
+| &#x27;?40 live at {bb6[7]}
+| &#x27;?41 live at {bb6[12]}
+| &#x27;?42 live at {bb6[12]}
+| &#x27;?43 live at {bb6[11]}
+| &#x27;?44 live at {bb6[11]}
+| &#x27;?56 live at {bb5[15]}
+| &#x27;?57 live at {bb7[4]}
+| &#x27;?0: &#x27;?29 due to Assignment at Single(bb4[2]) (src/demo.rs:35:30: 35:41 (#0)
+| &#x27;?0: &#x27;?47 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?0: &#x27;?48 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?2: &#x27;?45 due to TypeAnnotation(GenericArg) at Single(bb0[2]) (src/demo.rs:29:17: 29:65 (#0)
+| &#x27;?3: &#x27;?2 due to CallArgument(Some(FnDef(DefId(2:3713 ~ core[37f5]::convert::From::from), [std::string::String, &amp;&#x27;{erased} str]))) at Single(bb0[2]) (src/demo.rs:29:17: 29:65 (#0)
+| &#x27;?4: &#x27;?25 due to Usage at Single(bb1[3]) (src/demo.rs:30:23: 30:27 (#0)
+| &#x27;?5: &#x27;?0 due to Predicate(src/demo.rs:9:14: 9:21 (#0)) at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| &#x27;?5: &#x27;?24 due to Assignment at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| &#x27;?6: &#x27;?28 due to Boring at Single(bb1[10]) (src/demo.rs:31:20: 31:22 (#0)
+| &#x27;?7: &#x27;?27 due to Usage at Single(bb1[11]) (src/demo.rs:31:20: 31:22 (#0)
+| &#x27;?8: &#x27;?26 due to Boring at Single(bb1[12]) (src/demo.rs:31:15: 31:23 (#0)
+| &#x27;?9: &#x27;?24 due to Boring at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| &#x27;?10: &#x27;?46 due to TypeAnnotation(GenericArg) at Single(bb3[3]) (src/demo.rs:34:13: 34:61 (#0)
+| &#x27;?11: &#x27;?10 due to CallArgument(Some(FnDef(DefId(2:3713 ~ core[37f5]::convert::From::from), [std::string::String, &amp;&#x27;{erased} str]))) at Single(bb3[3]) (src/demo.rs:34:13: 34:61 (#0)
+| &#x27;?12: &#x27;?33 due to Boring at Single(bb5[7]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?13: &#x27;?37 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?14: &#x27;?13 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?15: &#x27;?38 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?16: &#x27;?49 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?17: &#x27;?50 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?17: &#x27;?56 due to BoringNoLocation at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?18: &#x27;?35 due to Assignment at Single(bb6[1]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?19: &#x27;?40 due to Boring at Single(bb6[6]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?20: &#x27;?39 due to Boring at Single(bb6[7]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?21: &#x27;?43 due to Boring at Single(bb6[10]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?22: &#x27;?41 due to Boring at Single(bb6[11]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?23: &#x27;?30 due to Boring at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?23: &#x27;?51 due to TypeAnnotation(GenericArg) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?24: &#x27;?9 due to Boring at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| &#x27;?25: &#x27;?5 due to Boring at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| &#x27;?26: &#x27;?9 due to Assignment at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| &#x27;?27: &#x27;?8 due to Boring at Single(bb1[12]) (src/demo.rs:31:15: 31:23 (#0)
+| &#x27;?28: &#x27;?7 due to Boring at Single(bb1[11]) (src/demo.rs:31:20: 31:22 (#0)
+| &#x27;?29: &#x27;?34 due to Boring at Single(bb5[7]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?29: &#x27;?47 due to TypeAnnotation(Declaration) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?29: &#x27;?48 due to TypeAnnotation(Ascription) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?30: &#x27;?57 due to CallArgument(Some(FnDef(DefId(1:4026 ~ std[1e3c]::io::stdio::_print), []))) at Single(bb7[4]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:9: 146:62 (#15)
+| &#x27;?31: &#x27;?14 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?32: &#x27;?15 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| &#x27;?33: &#x27;?31 due to Assignment at Single(bb5[8]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?34: &#x27;?32 due to Assignment at Single(bb5[8]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?35: &#x27;?44 due to Boring at Single(bb6[10]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?36: &#x27;?18 due to Boring at Single(bb6[1]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?37: &#x27;?56 due to CallArgument(Some(FnDef(DefId(2:12730 ~ core[37f5]::fmt::rt::{impl#0}::new_display), [&#x27;{erased}, &amp;&#x27;{erased} std::string::String]))) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?38: &#x27;?17 due to CallArgument(Some(FnDef(DefId(2:12730 ~ core[37f5]::fmt::rt::{impl#0}::new_display), [&#x27;{erased}, &amp;&#x27;{erased} std::string::String]))) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?39: &#x27;?23 due to CallArgument(Some(FnDef(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), [&#x27;{erased}, 4_usize, 1_usize]))) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?40: &#x27;?20 due to Boring at Single(bb6[7]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?41: &#x27;?23 due to CallArgument(Some(FnDef(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), [&#x27;{erased}, 4_usize, 1_usize]))) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?42: &#x27;?23 due to CallArgument(Some(FnDef(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), [&#x27;{erased}, 4_usize, 1_usize]))) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?43: &#x27;?22 due to Boring at Single(bb6[11]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?44: &#x27;?42 due to Boring at Single(bb6[11]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?45: &#x27;?2 due to TypeAnnotation(GenericArg) at Single(bb0[2]) (src/demo.rs:29:17: 29:65 (#0)
+| &#x27;?46: &#x27;?10 due to TypeAnnotation(GenericArg) at Single(bb3[3]) (src/demo.rs:34:13: 34:61 (#0)
+| &#x27;?47: &#x27;?0 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?47: &#x27;?29 due to TypeAnnotation(Declaration) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?48: &#x27;?0 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?48: &#x27;?29 due to TypeAnnotation(Ascription) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| &#x27;?49: &#x27;?16 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?49: &#x27;?53 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?50: &#x27;?17 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?51: &#x27;?23 due to TypeAnnotation(GenericArg) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?51: &#x27;?55 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?52: &#x27;?53 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?53: &#x27;?49 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?53: &#x27;?52 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| &#x27;?54: &#x27;?55 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?55: &#x27;?51 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?55: &#x27;?54 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| &#x27;?56: &#x27;?36 due to Boring at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+|
+| Borrows
+| bw0: issued at bb1[10] in &#x27;?6
+| bw1: issued at bb5[7] in &#x27;?12
+| bw2: issued at bb6[10] in &#x27;?21
+|
+| User Type Annotations
+| 0: user_ty: Canonical { value: TypeOf(DefId(2:3713 ~ core[37f5]::convert::From::from), UserArgs { args: [std::string::String, ^c_0], user_self_ty: None }), max_universe: U0, var_kinds: [Ty { ui: U0, sub_root: 0 }] }, span: src/demo.rs:29:17: 29:29, inferred_ty: fn(&amp;str) -&gt; std::string::String {&lt;std::string::String as std::convert::From&lt;&amp;str&gt;&gt;::from}
+| 1: user_ty: Canonical { value: TypeOf(DefId(2:3713 ~ core[37f5]::convert::From::from), UserArgs { args: [std::string::String, ^c_0], user_self_ty: None }), max_universe: U0, var_kinds: [Ty { ui: U0, sub_root: 0 }] }, span: src/demo.rs:34:13: 34:25, inferred_ty: fn(&amp;str) -&gt; std::string::String {&lt;std::string::String as std::convert::From&lt;&amp;str&gt;&gt;::from}
+| 2: user_ty: Canonical { value: Ty(&amp;&#x27;static std::string::String), max_universe: U0, var_kinds: [] }, span: src/demo.rs:35:12: 35:27, inferred_ty: &amp;std::string::String
+| 3: user_ty: Canonical { value: Ty(&amp;&#x27;static std::string::String), max_universe: U0, var_kinds: [] }, span: src/demo.rs:35:12: 35:27, inferred_ty: &amp;std::string::String
+| 4: user_ty: Canonical { value: TypeOf(DefId(2:12730 ~ core[37f5]::fmt::rt::{impl#0}::new_display), UserArgs { args: [&#x27;^c_0, ^c_1], user_self_ty: Some(UserSelfTy { impl_def_id: DefId(2:12729 ~ core[37f5]::fmt::rt::{impl#0}), self_ty: core::fmt::rt::Argument&lt;&#x27;^c_2&gt; }) }), max_universe: U0, var_kinds: [Region(U0), Ty { ui: U0, sub_root: 1 }, Region(U0)] }, span: src/demo.rs:36:15: 36:17, inferred_ty: for&lt;&#x27;a&gt; fn(&amp;&#x27;a &amp;std::string::String) -&gt; core::fmt::rt::Argument&lt;&#x27;a&gt; {core::fmt::rt::Argument::&lt;&#x27;_&gt;::new_display::&lt;&amp;std::string::String&gt;}
+| 5: user_ty: Canonical { value: TypeOf(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), UserArgs { args: [&#x27;^c_0, ^c_BoundConst { var: 1, .. }, ^c_BoundConst { var: 2, .. }], user_self_ty: Some(UserSelfTy { impl_def_id: DefId(2:12829 ~ core[37f5]::fmt::{impl#4}), self_ty: std::fmt::Arguments&lt;&#x27;^c_3&gt; }) }), max_universe: U0, var_kinds: [Region(U0), Const(U0), Const(U0), Region(U0)] }, span: /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61, inferred_ty: unsafe fn(&amp;[u8; 4], &amp;[core::fmt::rt::Argument&lt;&#x27;_&gt;; 1]) -&gt; std::fmt::Arguments&lt;&#x27;_&gt; {std::fmt::Arguments::&lt;&#x27;_&gt;::new::&lt;4, 1&gt;}
+|
+fn main() -&gt; () {
+    let mut _0: ();
+    let _1: ();
+    let _2: std::string::String;
+    let mut _4: std::option::Option&lt;&amp;std::string::String&gt;;
+    let mut _5: std::option::Option&lt;&amp;std::string::String&gt;;
+    let mut _6: &amp;std::string::String;
+    let _7: &amp;std::string::String;
+    let _8: std::string::String;
+    let _10: ();
+    let _11: ();
+    let mut _12: std::fmt::Arguments&lt;&#x27;_&gt;;
+    let mut _14: &amp;&amp;std::string::String;
+    let mut _16: core::fmt::rt::Argument&lt;&#x27;_&gt;;
+    let mut _17: &amp;&amp;std::string::String;
+    let mut _18: &amp;[u8; 4];
+    let _19: &amp;[u8; 4];
+    let mut _20: &amp;[core::fmt::rt::Argument&lt;&#x27;_&gt;; 1];
+    let _21: &amp;[core::fmt::rt::Argument&lt;&#x27;_&gt;; 1];
+    let _22: ();
+    let mut _23: std::string::String;
+    scope 1 {
+        debug l =&gt; _2;
+        let mut _3: Q&lt;&#x27;_&gt;;
+        scope 2 {
+            debug q =&gt; _3;
+        }
+    }
+    scope 3 {
+        debug z =&gt; _8;
+        let _9: &amp;std::string::String as UserTypeProjection { base: UserType(2), projs: [] };
+        scope 4 {
+            debug s =&gt; _9;
+            let _13: (&amp;&amp;std::string::String,);
+            scope 5 {
+                debug args =&gt; _13;
+                let _15: [core::fmt::rt::Argument&lt;&#x27;_&gt;; 1];
+                scope 6 {
+                    debug args =&gt; _15;
+                }
+            }
+        }
+    }
+
+    bb0: {
+        StorageLive(_1);
+        StorageLive(_2);
+        _2 = &lt;String as From&lt;&amp;str&gt;&gt;::from(const &quot;hello world, this is long enough&quot;) -&gt; [return: bb1, unwind: bb14];
+    }
+
+    bb1: {
+        FakeRead(ForLet(None), _2);
+        StorageLive(_3);
+        StorageLive(_4);
+        _4 = Option::&lt;&amp;String&gt;::None;
+        _3 = Q::&lt;&#x27;_&gt;(move _4);
+        StorageDead(_4);
+        FakeRead(ForLet(None), _3);
+        StorageLive(_5);
+        StorageLive(_6);
+        StorageLive(_7);
+        _7 = &amp;_2;
+        _6 = &amp;(*_7);
+        _5 = Option::&lt;&amp;String&gt;::Some(move _6);
+        StorageDead(_6);
+        (_3.0: std::option::Option&lt;&amp;std::string::String&gt;) = move _5;
+        StorageDead(_5);
+        StorageDead(_7);
+        _1 = const ();
+        drop(_3) -&gt; [return: bb2, unwind: bb13];
+    }
+
+    bb2: {
+        StorageDead(_3);
+        drop(_2) -&gt; [return: bb3, unwind: bb14];
+    }
+
+    bb3: {
+        StorageDead(_2);
+        StorageDead(_1);
+        StorageLive(_8);
+        _8 = &lt;String as From&lt;&amp;str&gt;&gt;::from(const &quot;XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX&quot;) -&gt; [return: bb4, unwind: bb14];
+    }
+
+    bb4: {
+        FakeRead(ForLet(None), _8);
+        StorageLive(_9);
+        _9 = read_kept() -&gt; [return: bb5, unwind: bb12];
+    }
+
+    bb5: {
+        FakeRead(ForLet(None), _9);
+        AscribeUserType(_9, o, UserTypeProjection { base: UserType(3), projs: [] });
+        StorageLive(_10);
+        StorageLive(_11);
+        StorageLive(_12);
+        StorageLive(_13);
+        StorageLive(_14);
+        _14 = &amp;_9;
+        _13 = (move _14,);
+        StorageDead(_14);
+        FakeRead(ForLet(None), _13);
+        StorageLive(_15);
+        StorageLive(_16);
+        StorageLive(_17);
+        _17 = &amp;(*(_13.0: &amp;&amp;std::string::String));
+        _16 = core::fmt::rt::Argument::&lt;&#x27;_&gt;::new_display::&lt;&amp;String&gt;(move _17) -&gt; [return: bb6, unwind: bb12];
+    }
+
+    bb6: {
+        StorageDead(_17);
+        _15 = [move _16];
+        StorageDead(_16);
+        FakeRead(ForLet(None), _15);
+        StorageLive(_18);
+        StorageLive(_19);
+        _19 = const b&quot;\xc0\x01\n\x00&quot;;
+        _18 = &amp;(*_19);
+        StorageLive(_20);
+        StorageLive(_21);
+        _21 = &amp;_15;
+        _20 = &amp;(*_21);
+        _12 = Arguments::&lt;&#x27;_&gt;::new::&lt;4, 1&gt;(move _18, move _20) -&gt; [return: bb7, unwind: bb12];
+    }
+
+    bb7: {
+        StorageDead(_21);
+        StorageDead(_20);
+        StorageDead(_19);
+        StorageDead(_18);
+        _11 = std::io::_print(move _12) -&gt; [return: bb8, unwind: bb12];
+    }
+
+    bb8: {
+        StorageDead(_12);
+        StorageDead(_15);
+        StorageDead(_13);
+        StorageDead(_11);
+        _10 = const ();
+        StorageDead(_10);
+        StorageLive(_22);
+        StorageLive(_23);
+        _23 = move _8;
+        _22 = std::mem::drop::&lt;String&gt;(move _23) -&gt; [return: bb9, unwind: bb11];
+    }
+
+    bb9: {
+        StorageDead(_23);
+        StorageDead(_22);
+        _0 = const ();
+        StorageDead(_9);
+        drop(_8) -&gt; [return: bb10, unwind: bb14];
+    }
+
+    bb10: {
+        StorageDead(_8);
+        return;
+    }
+
+    bb11 (cleanup): {
+        drop(_23) -&gt; [return: bb12, unwind terminate(cleanup)];
+    }
+
+    bb12 (cleanup): {
+        drop(_8) -&gt; [return: bb14, unwind terminate(cleanup)];
+    }
+
+    bb13 (cleanup): {
+        drop(_2) -&gt; [return: bb14, unwind terminate(cleanup)];
+    }
+
+    bb14 (cleanup): {
+        resume;
+    }
+}
+
+alloc10 (size: 4, align: 1) {
+    c0 01 0a 00                                     │ ....
+}
+
+alloc9 (size: 32, align: 1) {
+    0x00 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+    0x10 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+}
+
+alloc8 (size: 32, align: 1) {
+    0x00 │ 68 65 6c 6c 6f 20 77 6f 72 6c 64 2c 20 74 68 69 │ hello world, thi
+    0x10 │ 73 20 69 73 20 6c 6f 6e 67 20 65 6e 6f 75 67 68 │ s is long enough
+}
+</code></pre></details>
+<details><summary>完整 NLL MIR：拒绝路径</summary><p class="source">来源：<a href="out/mir_rej/rejected.main.-------.nll.0.mir">out/mir_rej/rejected.main.-------.nll.0.mir</a></p><pre><code>// MIR for `main` 0 nll
+
+| Free Region Mapping
+| &#x27;?0 | Global | [&#x27;?0, &#x27;?1]
+| &#x27;?1 | Local | [&#x27;?1]
+|
+| Inferred Region Values
+| &#x27;?0 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?1 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?1}
+| &#x27;?2 | U0 | {bb0[1]}
+| &#x27;?3 | U0 | {bb0[1]}
+| &#x27;?4 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?5 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?6 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?7 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?8 | U0 | {bb1[10..=14]}
+| &#x27;?9 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?10 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?11 | U0 | {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0], &#x27;?0, &#x27;?1}
+| &#x27;?12 | U0 | {bb0[1]}
+|
+| Inference Constraints
+| &#x27;?0 live at {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0]}
+| &#x27;?1 live at {bb0[0..=1], bb1[0..=14], bb2[0..=1], bb3[0..=1], bb4[0], bb5[0]}
+| &#x27;?2 live at {bb0[1]}
+| &#x27;?3 live at {bb0[1]}
+| &#x27;?4 live at {bb1[5]}
+| &#x27;?5 live at {bb1[6]}
+| &#x27;?6 live at {bb1[7]}
+| &#x27;?7 live at {bb1[9]}
+| &#x27;?8 live at {bb1[10..=14]}
+| &#x27;?2: &#x27;?12 due to TypeAnnotation(GenericArg) at Single(bb0[1]) (rejected/rejected.rs:7:13: 7:34 (#0)
+| &#x27;?3: &#x27;?2 due to CallArgument(Some(FnDef(DefId(2:3713 ~ core[37f5]::convert::From::from), [std::string::String, &amp;&#x27;{erased} str]))) at Single(bb0[1]) (rejected/rejected.rs:7:13: 7:34 (#0)
+| &#x27;?4: &#x27;?11 due to Boring at Single(bb1[5]) (rejected/rejected.rs:8:21: 8:23 (#0)
+| &#x27;?5: &#x27;?10 due to Usage at Single(bb1[6]) (rejected/rejected.rs:8:21: 8:23 (#0)
+| &#x27;?6: &#x27;?9 due to Usage at Single(bb1[7]) (rejected/rejected.rs:8:16: 8:24 (#0)
+| &#x27;?7: &#x27;?0 due to Predicate(rejected/rejected.rs:2:14: 2:21 (#0)) at Single(bb1[9]) (rejected/rejected.rs:8:14: 8:25 (#0)
+| &#x27;?7: &#x27;?8 due to Assignment at Single(bb1[9]) (rejected/rejected.rs:8:14: 8:25 (#0)
+| &#x27;?9: &#x27;?7 due to Boring at Single(bb1[9]) (rejected/rejected.rs:8:14: 8:25 (#0)
+| &#x27;?10: &#x27;?6 due to Boring at Single(bb1[7]) (rejected/rejected.rs:8:16: 8:24 (#0)
+| &#x27;?11: &#x27;?5 due to Boring at Single(bb1[6]) (rejected/rejected.rs:8:21: 8:23 (#0)
+| &#x27;?12: &#x27;?2 due to TypeAnnotation(GenericArg) at Single(bb0[1]) (rejected/rejected.rs:7:13: 7:34 (#0)
+|
+| Borrows
+| bw0: issued at bb1[5] in &#x27;?4
+|
+| User Type Annotations
+| 0: user_ty: Canonical { value: TypeOf(DefId(2:3713 ~ core[37f5]::convert::From::from), UserArgs { args: [std::string::String, ^c_0], user_self_ty: None }), max_universe: U0, var_kinds: [Ty { ui: U0, sub_root: 0 }] }, span: rejected/rejected.rs:7:13: 7:25, inferred_ty: fn(&amp;str) -&gt; std::string::String {&lt;std::string::String as std::convert::From&lt;&amp;str&gt;&gt;::from}
+|
+fn main() -&gt; () {
+    let mut _0: ();
+    let _1: std::string::String;
+    let mut _3: std::option::Option&lt;&amp;std::string::String&gt;;
+    let mut _4: &amp;std::string::String;
+    let _5: &amp;std::string::String;
+    scope 1 {
+        debug l =&gt; _1;
+        let _2: Q&lt;&#x27;_&gt;;
+        scope 2 {
+            debug _q =&gt; _2;
+        }
+    }
+
+    bb0: {
+        StorageLive(_1);
+        _1 = &lt;String as From&lt;&amp;str&gt;&gt;::from(const &quot;hello&quot;) -&gt; [return: bb1, unwind: bb5];
+    }
+
+    bb1: {
+        FakeRead(ForLet(None), _1);
+        StorageLive(_2);
+        StorageLive(_3);
+        StorageLive(_4);
+        StorageLive(_5);
+        _5 = &amp;_1;
+        _4 = &amp;(*_5);
+        _3 = Option::&lt;&amp;String&gt;::Some(move _4);
+        StorageDead(_4);
+        _2 = Q::&lt;&#x27;_&gt;(move _3);
+        StorageDead(_3);
+        FakeRead(ForLet(None), _2);
+        StorageDead(_5);
+        _0 = const ();
+        drop(_2) -&gt; [return: bb2, unwind: bb4];
+    }
+
+    bb2: {
+        StorageDead(_2);
+        drop(_1) -&gt; [return: bb3, unwind: bb5];
+    }
+
+    bb3: {
+        StorageDead(_1);
+        return;
+    }
+
+    bb4 (cleanup): {
+        drop(_1) -&gt; [return: bb5, unwind terminate(cleanup)];
+    }
+
+    bb5 (cleanup): {
+        resume;
+    }
+}
+
+alloc1 (size: 5, align: 1) {
+    68 65 6c 6c 6f                                  │ hello
+}
+</code></pre></details>
+<details><summary>区域约束图 DOT：通过路径</summary><p class="source">来源：<a href="out/mir/demo.main.-------.nll.0.regioncx.all.dot">out/mir/demo.main.-------.nll.0.regioncx.all.dot</a></p><pre><code>digraph RegionInferenceContext {
+    r0[label=&quot;\&#x27;?0 (\&#x27;static)&quot;][shape=&quot;box&quot;];
+    r1[label=&quot;\&#x27;?1&quot;][shape=&quot;box&quot;];
+    r2[label=&quot;\&#x27;?2 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r3[label=&quot;\&#x27;?3 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r4[label=&quot;\&#x27;?4 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r5[label=&quot;\&#x27;?5 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r6[label=&quot;\&#x27;?6 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r7[label=&quot;\&#x27;?7 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r8[label=&quot;\&#x27;?8 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r9[label=&quot;\&#x27;?9 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r10[label=&quot;\&#x27;?10 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r11[label=&quot;\&#x27;?11 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r12[label=&quot;\&#x27;?12 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r13[label=&quot;\&#x27;?13 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r14[label=&quot;\&#x27;?14 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r15[label=&quot;\&#x27;?15 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r16[label=&quot;\&#x27;?16 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r17[label=&quot;\&#x27;?17 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r18[label=&quot;\&#x27;?18 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r19[label=&quot;\&#x27;?19 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r20[label=&quot;\&#x27;?20 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r21[label=&quot;\&#x27;?21 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r22[label=&quot;\&#x27;?22 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r23[label=&quot;\&#x27;?23 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r24[label=&quot;\&#x27;?24 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r25[label=&quot;\&#x27;?25 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r26[label=&quot;\&#x27;?26 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r27[label=&quot;\&#x27;?27 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r28[label=&quot;\&#x27;?28 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r29[label=&quot;\&#x27;?29 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r30[label=&quot;\&#x27;?30 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r31[label=&quot;\&#x27;?31 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r32[label=&quot;\&#x27;?32 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r33[label=&quot;\&#x27;?33 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r34[label=&quot;\&#x27;?34 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r35[label=&quot;\&#x27;?35 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r36[label=&quot;\&#x27;?36 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r37[label=&quot;\&#x27;?37 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r38[label=&quot;\&#x27;?38 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r39[label=&quot;\&#x27;?39 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r40[label=&quot;\&#x27;?40 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r41[label=&quot;\&#x27;?41 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r42[label=&quot;\&#x27;?42 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r43[label=&quot;\&#x27;?43 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r44[label=&quot;\&#x27;?44 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r45[label=&quot;\&#x27;?45 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r46[label=&quot;\&#x27;?46 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r47[label=&quot;\&#x27;?47 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r48[label=&quot;\&#x27;?48 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r49[label=&quot;\&#x27;?49 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r50[label=&quot;\&#x27;?50 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r51[label=&quot;\&#x27;?51 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r52[label=&quot;\&#x27;?52 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r53[label=&quot;\&#x27;?53 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r54[label=&quot;\&#x27;?54 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r55[label=&quot;\&#x27;?55 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r56[label=&quot;\&#x27;?56 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r57[label=&quot;\&#x27;?57 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r47 -&gt; r0[label=&quot;All(...)&quot;];
+    r0 -&gt; r47[label=&quot;All(...)&quot;];
+    r48 -&gt; r0[label=&quot;All(...)&quot;];
+    r0 -&gt; r48[label=&quot;All(...)&quot;];
+    r49 -&gt; r53[label=&quot;All(...)&quot;];
+    r53 -&gt; r49[label=&quot;All(...)&quot;];
+    r52 -&gt; r53[label=&quot;All(...)&quot;];
+    r53 -&gt; r52[label=&quot;All(...)&quot;];
+    r51 -&gt; r55[label=&quot;All(...)&quot;];
+    r55 -&gt; r51[label=&quot;All(...)&quot;];
+    r54 -&gt; r55[label=&quot;All(...)&quot;];
+    r55 -&gt; r54[label=&quot;All(...)&quot;];
+    r47 -&gt; r29[label=&quot;All(...)&quot;];
+    r29 -&gt; r47[label=&quot;All(...)&quot;];
+    r45 -&gt; r2[label=&quot;bb0[2]&quot;];
+    r2 -&gt; r45[label=&quot;bb0[2]&quot;];
+    r3 -&gt; r2[label=&quot;bb0[2]&quot;];
+    r4 -&gt; r25[label=&quot;bb1[3]&quot;];
+    r5 -&gt; r0[label=&quot;bb1[4]&quot;];
+    r25 -&gt; r5[label=&quot;bb1[4]&quot;];
+    r5 -&gt; r24[label=&quot;bb1[4]&quot;];
+    r6 -&gt; r28[label=&quot;bb1[10]&quot;];
+    r28 -&gt; r7[label=&quot;bb1[11]&quot;];
+    r7 -&gt; r27[label=&quot;bb1[11]&quot;];
+    r27 -&gt; r8[label=&quot;bb1[12]&quot;];
+    r8 -&gt; r26[label=&quot;bb1[12]&quot;];
+    r24 -&gt; r9[label=&quot;bb1[14]&quot;];
+    r9 -&gt; r24[label=&quot;bb1[14]&quot;];
+    r26 -&gt; r9[label=&quot;bb1[14]&quot;];
+    r46 -&gt; r10[label=&quot;bb3[3]&quot;];
+    r10 -&gt; r46[label=&quot;bb3[3]&quot;];
+    r11 -&gt; r10[label=&quot;bb3[3]&quot;];
+    r0 -&gt; r29[label=&quot;bb4[2]&quot;];
+    r48 -&gt; r29[label=&quot;All(...)&quot;];
+    r29 -&gt; r48[label=&quot;All(...)&quot;];
+    r12 -&gt; r33[label=&quot;bb5[7]&quot;];
+    r29 -&gt; r34[label=&quot;bb5[7]&quot;];
+    r33 -&gt; r31[label=&quot;bb5[8]&quot;];
+    r34 -&gt; r32[label=&quot;bb5[8]&quot;];
+    r31 -&gt; r14[label=&quot;bb5[14]&quot;];
+    r32 -&gt; r15[label=&quot;bb5[14]&quot;];
+    r14 -&gt; r13[label=&quot;bb5[14]&quot;];
+    r13 -&gt; r37[label=&quot;bb5[14]&quot;];
+    r15 -&gt; r38[label=&quot;bb5[14]&quot;];
+    r49 -&gt; r16[label=&quot;bb5[15]&quot;];
+    r16 -&gt; r49[label=&quot;bb5[15]&quot;];
+    r50 -&gt; r17[label=&quot;bb5[15]&quot;];
+    r17 -&gt; r50[label=&quot;bb5[15]&quot;];
+    r17 -&gt; r56[label=&quot;bb5[15]&quot;];
+    r56 -&gt; r36[label=&quot;bb5[15]&quot;];
+    r37 -&gt; r56[label=&quot;bb5[15]&quot;];
+    r38 -&gt; r17[label=&quot;bb5[15]&quot;];
+    r36 -&gt; r18[label=&quot;bb6[1]&quot;];
+    r18 -&gt; r35[label=&quot;bb6[1]&quot;];
+    r19 -&gt; r40[label=&quot;bb6[6]&quot;];
+    r40 -&gt; r20[label=&quot;bb6[7]&quot;];
+    r20 -&gt; r39[label=&quot;bb6[7]&quot;];
+    r21 -&gt; r43[label=&quot;bb6[10]&quot;];
+    r35 -&gt; r44[label=&quot;bb6[10]&quot;];
+    r43 -&gt; r22[label=&quot;bb6[11]&quot;];
+    r22 -&gt; r41[label=&quot;bb6[11]&quot;];
+    r44 -&gt; r42[label=&quot;bb6[11]&quot;];
+    r51 -&gt; r23[label=&quot;bb6[12]&quot;];
+    r23 -&gt; r51[label=&quot;bb6[12]&quot;];
+    r23 -&gt; r30[label=&quot;bb6[12]&quot;];
+    r39 -&gt; r23[label=&quot;bb6[12]&quot;];
+    r41 -&gt; r23[label=&quot;bb6[12]&quot;];
+    r42 -&gt; r23[label=&quot;bb6[12]&quot;];
+    r30 -&gt; r57[label=&quot;bb7[4]&quot;];
+}
+</code></pre></details>
+<details><summary>区域约束图 DOT：拒绝路径</summary><p class="source">来源：<a href="out/mir_rej/rejected.main.-------.nll.0.regioncx.all.dot">out/mir_rej/rejected.main.-------.nll.0.regioncx.all.dot</a></p><pre><code>digraph RegionInferenceContext {
+    r0[label=&quot;\&#x27;?0 (\&#x27;static)&quot;][shape=&quot;box&quot;];
+    r1[label=&quot;\&#x27;?1&quot;][shape=&quot;box&quot;];
+    r2[label=&quot;\&#x27;?2 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r3[label=&quot;\&#x27;?3 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r4[label=&quot;\&#x27;?4 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r5[label=&quot;\&#x27;?5 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r6[label=&quot;\&#x27;?6 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r7[label=&quot;\&#x27;?7 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r8[label=&quot;\&#x27;?8 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r9[label=&quot;\&#x27;?9 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r10[label=&quot;\&#x27;?10 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r11[label=&quot;\&#x27;?11 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r12[label=&quot;\&#x27;?12 (ex&lt;\&#x27;_&gt;)&quot;][shape=&quot;box&quot;];
+    r12 -&gt; r2[label=&quot;bb0[1]&quot;];
+    r2 -&gt; r12[label=&quot;bb0[1]&quot;];
+    r3 -&gt; r2[label=&quot;bb0[1]&quot;];
+    r4 -&gt; r11[label=&quot;bb1[5]&quot;];
+    r11 -&gt; r5[label=&quot;bb1[6]&quot;];
+    r5 -&gt; r10[label=&quot;bb1[6]&quot;];
+    r10 -&gt; r6[label=&quot;bb1[7]&quot;];
+    r6 -&gt; r9[label=&quot;bb1[7]&quot;];
+    r7 -&gt; r0[label=&quot;bb1[9]&quot;];
+    r9 -&gt; r7[label=&quot;bb1[9]&quot;];
+    r7 -&gt; r8[label=&quot;bb1[9]&quot;];
+}
+</code></pre></details>
+</section><section id="runtime"><h2>附录 B1 / 输出记录与完整汇编材料</h2>
+<div class="table-scroll"><table><thead><tr><th>程序</th><th>O0 保存的标准输出</th><th>O2 保存的标准输出</th></tr></thead><tbody><tr><td>issue_original</td><td>32 个 X + 换行</td><td>32 字节机器码 + 换行；对应 ELF 虚拟地址 0x147f0</td></tr><tr><td>demo</td><td>32 个 X + 换行</td><td>32 字节机器码 + 换行；对应 ELF 虚拟地址 0x13eb0</td></tr></tbody></table></div>
+<p>读取的是已经失效的 <code>String</code> 对象，而不是合法保存的字符串内容。字符串有两层存储：栈上的对象描述信息，以及它指向的堆缓冲区。栈槽未覆盖也不代表对象仍然有效。</p>
+<h3>O0：栈对象信息仍残留，堆缓冲区可能被后续分配复用</h3><p>精简版汇编中，<code>l</code> 位于 <code>[rbp-0xa0]</code>，<code>q</code> 位于 <code>[rbp-0x88]</code>，后续 <code>z</code> 位于 <code>[rbp-0x80]</code>。<code>14dce</code> 调用 q 的析构，<code>14dfb</code> 随后调用 l 的析构，<code>14e14</code> 再创建同为 32 字节的 z。保存的输出与“l 的旧堆缓冲区被 z 复用”的解释一致；项目没有保存堆地址会话记录，不能把复用地址当作已直接观测的事实。</p>
+<h3>O2：失效栈槽被格式化参数覆盖，读出代码段内容</h3><p>精简版 <code>l</code> 的 24 字节栈对象位于 <code>[rbp-0x20, rbp-0x08)</code>。在本份产物中三个字依次为容量、堆指针、长度；这是当前汇编布局，不能当作 Rust 的稳定 ABI。q 的 Drop 保存了 <code>rbp-0x20</code>。随后格式化参数复用同一栈槽：</p>
+<pre><code>13e01: lea rax,[rbp-0x20]       ; &amp;l
+13e05: mov [rbp-0x28],rax       ; q.0 = Some(&amp;l)
+13e10: call 13e90              ; Q::drop 保存 &amp;l
+13e27: call [rip+0x401f3]       ; 释放 l 的堆缓冲区
+13e33: call 13e80              ; read_kept 返回失效的 &amp;l
+13e38: mov [rbp-0x28],rax
+13e3c: mov [rbp-0x20],rbx       ; 用格式化参数覆盖旧 String 槽位
+13e40: lea rax,[rip+0x69]       ; rax = 0x13eb0，Display::fmt
+13e47: mov [rbp-0x18],rax       ; 覆盖旧 String 的指针字
+// [rbp-0x10] 的旧长度 0x20 仍然保留
+13e56: call [rip+0x401cc]       ; 输出从 fmt 地址开始的 32 字节</code></pre>
+<p>原始版也有对应覆盖：<code>l</code> 位于 <code>rbp-0x40</code>，<code>14453</code> 写入格式化参数数据地址，<code>1445e</code> 在旧指针字 <code>rbp-0x38</code> 写入 <code>0x147f0</code> 的函数地址。旧长度字仍为 32。</p><p><strong>本次核验：</strong>把两个 O2 十六进制输出还原为原始字节，按 ELF 的 PT_LOAD 映射检索，均唯一匹配对应格式化函数入口开始的 32 字节：demo 的 <code>&lt;&amp;String as Display&gt;::fmt</code>，以及原始版的 <code>&lt;&amp;&amp;String as Display&gt;::fmt</code>。因此这里的“乱码”可以精确解释为机器码字节。</p>
+<p class="note">精简版 O2 中已看不到 z 的完整分配、填充与析构，不能继续套用 O0 的“X 覆盖堆缓冲区”解释。UB 发生后，输出、崩溃与优化结果都可能变化；这些分析只解释现存产物。</p>
+<details><summary>issue_original / O0：标准输出十六进制记录</summary><p class="source">来源：<a href="out/issue_original_O0.stdout.xxd.txt">out/issue_original_O0.stdout.xxd.txt</a></p><pre><code>00000000: 5858 5858 5858 5858 5858 5858 5858 5858  XXXXXXXXXXXXXXXX
+00000010: 5858 5858 5858 5858 5858 5858 5858 5858  XXXXXXXXXXXXXXXX
+00000020: 0a                                       .
+</code></pre></details>
+<details><summary>issue_original / O2：标准输出十六进制记录</summary><p class="source">来源：<a href="out/issue_original_O2.stdout.xxd.txt">out/issue_original_O2.stdout.xxd.txt</a></p><pre><code>00000000: 5548 89e5 4889 f248 8b07 488b 0048 8b78  UH..H..H..H..H.x
+00000010: 0848 8b70 105d ff25 ac03 0400 cccc cccc  .H.p.].%........
+00000020: 0a                                       .
+</code></pre></details>
+<details><summary>demo / O0：标准输出十六进制记录</summary><p class="source">来源：<a href="out/demo_O0.stdout.xxd.txt">out/demo_O0.stdout.xxd.txt</a></p><pre><code>00000000: 5858 5858 5858 5858 5858 5858 5858 5858  XXXXXXXXXXXXXXXX
+00000010: 5858 5858 5858 5858 5858 5858 5858 5858  XXXXXXXXXXXXXXXX
+00000020: 0a                                       .
+</code></pre></details>
+<details><summary>demo / O2：标准输出十六进制记录</summary><p class="source">来源：<a href="out/demo_O2.stdout.xxd.txt">out/demo_O2.stdout.xxd.txt</a></p><pre><code>00000000: 5548 89e5 4889 f248 8b07 488b 7808 488b  UH..H..H..H.x.H.
+00000010: 7010 5dff 256f 0104 00cc cccc cccc cccc  p.].%o..........
+00000020: 0a                                       .
+</code></pre></details>
+<details><summary>demo / O0：附源码行号的 main、Drop、read_kept 汇编</summary><p class="source">来源：<a href="out/annotated/demo_O0.main_drop_readkept.lined.txt">out/annotated/demo_O0.main_drop_readkept.lined.txt</a></p><pre><code>0000000000014d80 &lt;demo::main&gt;:
+demo::main:
+src/demo.rs:27
+   14d80:	push   rbp
+   14d81:	mov    rbp,rsp
+   14d84:	sub    rsp,0xc0
+src/demo.rs:28
+   14d8b:	mov    BYTE PTR [rbp-0x19],0x0
+src/demo.rs:29
+   14d8f:	lea    rsi,[rip+0xffffffffffff419a]        # 8f30 &lt;GCC_except_table142+0x1860&gt;
+   14d96:	lea    rdi,[rbp-0xa0]
+   14d9d:	mov    QWORD PTR [rbp-0xa8],rdi
+   14da4:	mov    edx,0x20
+   14da9:	call   154b0 &lt;&lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from&gt;
+   14dae:	mov    rax,QWORD PTR [rbp-0xa8]
+src/demo.rs:30
+   14db5:	mov    QWORD PTR [rbp-0x88],0x0
+src/demo.rs:31
+   14dc0:	mov    QWORD PTR [rbp-0x88],rax
+   14dc7:	lea    rdi,[rbp-0x88]
+src/demo.rs:32
+   14dce:	call   14a60 &lt;core::ptr::drop_glue::&lt;demo::Q&gt;&gt;
+   14dd3:	jmp    14df4 &lt;demo::main+0x74&gt;
+   14dd5:	lea    rdi,[rbp-0xa0]
+   14ddc:	call   14a80 &lt;core::ptr::drop_glue::&lt;alloc::string::String&gt;&gt;
+   14de1:	jmp    14ecf &lt;demo::main+0x14f&gt;
+   14de6:	mov    rcx,rax
+   14de9:	mov    eax,edx
+   14deb:	mov    QWORD PTR [rbp-0x18],rcx
+   14def:	mov    DWORD PTR [rbp-0x10],eax
+   14df2:	jmp    14dd5 &lt;demo::main+0x55&gt;
+   14df4:	lea    rdi,[rbp-0xa0]
+   14dfb:	call   14a80 &lt;core::ptr::drop_glue::&lt;alloc::string::String&gt;&gt;
+src/demo.rs:34
+   14e00:	mov    BYTE PTR [rbp-0x19],0x1
+   14e04:	lea    rsi,[rip+0xffffffffffff40e5]        # 8ef0 &lt;GCC_except_table142+0x1820&gt;
+   14e0b:	lea    rdi,[rbp-0x80]
+   14e0f:	mov    edx,0x20
+   14e14:	call   154b0 &lt;&lt;alloc::string::String as core::convert::From&lt;&amp;str&gt;&gt;::from&gt;
+src/demo.rs:35
+   14e19:	call   14ef0 &lt;demo::read_kept&gt;
+   14e1e:	mov    QWORD PTR [rbp-0xb0],rax
+   14e25:	jmp    14e44 &lt;demo::main+0xc4&gt;
+src/demo.rs:38
+   14e27:	test   BYTE PTR [rbp-0x19],0x1
+   14e2b:	jne    14ed8 &lt;demo::main+0x158&gt;
+   14e31:	jmp    14ecf &lt;demo::main+0x14f&gt;
+   14e36:	mov    rcx,rax
+   14e39:	mov    eax,edx
+   14e3b:	mov    QWORD PTR [rbp-0x18],rcx
+   14e3f:	mov    DWORD PTR [rbp-0x10],eax
+   14e42:	jmp    14e27 &lt;demo::main+0xa7&gt;
+   14e44:	mov    rax,QWORD PTR [rbp-0xb0]
+src/demo.rs:35
+   14e4b:	mov    QWORD PTR [rbp-0x68],rax
+   14e4f:	lea    rsi,[rbp-0x68]
+src/demo.rs:36
+   14e53:	mov    QWORD PTR [rbp-0x8],rsi
+   14e57:	lea    rdi,[rbp-0x50]
+   14e5b:	call   14940 &lt;&lt;core::fmt::rt::Argument&gt;::new_display::&lt;&amp;alloc::string::String&gt;&gt;
+   14e60:	jmp    14e62 &lt;demo::main+0xe2&gt;
+   14e62:	movups xmm0,XMMWORD PTR [rbp-0x50]
+   14e66:	movaps XMMWORD PTR [rbp-0x60],xmm0
+   14e6a:	lea    rdi,[rip+0xffffffffffff2b0d]        # 797e &lt;GCC_except_table142+0x2ae&gt;
+   14e71:	lea    rsi,[rbp-0x60]
+   14e75:	call   14970 &lt;&lt;core::fmt::Arguments&gt;::new::&lt;4, 1&gt;&gt;
+   14e7a:	mov    QWORD PTR [rbp-0xc0],rdx
+   14e81:	mov    QWORD PTR [rbp-0xb8],rax
+   14e88:	jmp    14e8a &lt;demo::main+0x10a&gt;
+   14e8a:	mov    rsi,QWORD PTR [rbp-0xc0]
+   14e91:	mov    rdi,QWORD PTR [rbp-0xb8]
+   14e98:	mov    rax,QWORD PTR [rip+0x409a1]        # 55840 &lt;_DYNAMIC+0x260&gt;
+   14e9f:	call   rax
+   14ea1:	jmp    14ea3 &lt;demo::main+0x123&gt;
+src/demo.rs:37
+   14ea3:	mov    BYTE PTR [rbp-0x19],0x0
+   14ea7:	mov    rax,QWORD PTR [rbp-0x70]
+   14eab:	mov    QWORD PTR [rbp-0x30],rax
+   14eaf:	movups xmm0,XMMWORD PTR [rbp-0x80]
+   14eb3:	movaps XMMWORD PTR [rbp-0x40],xmm0
+   14eb7:	lea    rdi,[rbp-0x40]
+   14ebb:	call   149d0 &lt;core::mem::drop::&lt;alloc::string::String&gt;&gt;
+   14ec0:	jmp    14ec2 &lt;demo::main+0x142&gt;
+src/demo.rs:38
+   14ec2:	mov    BYTE PTR [rbp-0x19],0x0
+   14ec6:	add    rsp,0xc0
+   14ecd:	pop    rbp
+   14ece:	ret    
+src/demo.rs:27
+   14ecf:	mov    rdi,QWORD PTR [rbp-0x18]
+   14ed3:	call   52920 &lt;_Unwind_Resume@plt&gt;
+   14ed8:	lea    rdi,[rbp-0x80]
+src/demo.rs:38
+   14edc:	call   14a80 &lt;core::ptr::drop_glue::&lt;alloc::string::String&gt;&gt;
+   14ee1:	jmp    14ecf &lt;demo::main+0x14f&gt;
+src/demo.rs:27
+   14ee3:	call   QWORD PTR [rip+0x40937]        # 55820 &lt;_DYNAMIC+0x240&gt;
+
+0000000000014ef0 &lt;demo::read_kept&gt;:
+demo::read_kept:
+src/demo.rs:23
+   14ef0:	push   rbp
+   14ef1:	mov    rbp,rsp
+   14ef4:	sub    rsp,0x10
+src/demo.rs:24
+   14ef8:	lea    rdi,[rip+0x42b51]        # 57a50 &lt;demo::KEPT&gt;
+   14eff:	xor    esi,esi
+   14f01:	call   15030 &lt;&lt;core::sync::atomic::Atomic&lt;*mut alloc::string::String&gt;&gt;::load&gt;
+   14f06:	mov    QWORD PTR [rbp-0x8],rax
+   14f0a:	and    rax,0x7
+   14f0e:	cmp    rax,0x0
+   14f12:	jne    14f29 &lt;demo::read_kept+0x39&gt;
+   14f14:	mov    rax,QWORD PTR [rbp-0x8]
+   14f18:	cmp    rax,0x0
+   14f1c:	sete   al
+   14f1f:	and    al,0xff
+   14f21:	xor    al,0xff
+   14f23:	test   al,0x1
+   14f25:	jne    14f3f &lt;demo::read_kept+0x4f&gt;
+   14f27:	jmp    14f49 &lt;demo::read_kept+0x59&gt;
+   14f29:	mov    rsi,QWORD PTR [rbp-0x8]
+   14f2d:	mov    edi,0x8
+   14f32:	lea    rdx,[rip+0x3eaff]        # 53a38 &lt;__frame_dummy_init_array_entry+0xc8&gt;
+   14f39:	call   QWORD PTR [rip+0x40909]        # 55848 &lt;_DYNAMIC+0x268&gt;
+   14f3f:	mov    rax,QWORD PTR [rbp-0x8]
+src/demo.rs:25
+   14f43:	add    rsp,0x10
+   14f47:	pop    rbp
+   14f48:	ret    
+src/demo.rs:24
+   14f49:	lea    rdi,[rip+0x3eae8]        # 53a38 &lt;__frame_dummy_init_array_entry+0xc8&gt;
+   14f50:	call   QWORD PTR [rip+0x408fa]        # 55850 &lt;_DYNAMIC+0x270&gt;
+
+0000000000015440 &lt;&lt;demo::Q as core::ops::drop::Drop&gt;::drop&gt;:
+&lt;demo::Q as core::ops::drop::Drop&gt;::drop:
+src/demo.rs:13
+   15440:	push   rbp
+   15441:	mov    rbp,rsp
+   15444:	sub    rsp,0x20
+   15448:	mov    QWORD PTR [rbp-0x18],rdi
+   1544c:	mov    QWORD PTR [rbp-0x10],rdi
+src/demo.rs:14
+   15450:	mov    rdx,QWORD PTR [rdi]
+   15453:	mov    eax,0x1
+   15458:	xor    ecx,ecx
+   1545a:	cmp    rdx,0x0
+   1545e:	cmove  rax,rcx
+   15462:	test   rax,0x1
+   15468:	je     15483 &lt;&lt;demo::Q as core::ops::drop::Drop&gt;::drop+0x43&gt;
+   1546a:	mov    rax,QWORD PTR [rbp-0x18]
+   1546e:	mov    rsi,QWORD PTR [rax]
+   15471:	mov    QWORD PTR [rbp-0x8],rsi
+src/demo.rs:17
+   15475:	lea    rdi,[rip+0x425d4]        # 57a50 &lt;demo::KEPT&gt;
+   1547c:	xor    edx,edx
+   1547e:	call   15050 &lt;&lt;core::sync::atomic::Atomic&lt;*mut alloc::string::String&gt;&gt;::store&gt;
+src/demo.rs:19
+   15483:	add    rsp,0x20
+   15487:	pop    rbp
+   15488:	ret    
+
+</code></pre></details>
+<details><summary>demo / O2：附源码行号的 main、Drop、read_kept 汇编</summary><p class="source">来源：<a href="out/annotated/demo_O2.main_drop_readkept.lined.txt">out/annotated/demo_O2.main_drop_readkept.lined.txt</a></p><pre><code>0000000000013db0 &lt;demo::main&gt;:
+demo::main:
+src/demo.rs:27
+   13db0:	push   rbp
+   13db1:	mov    rbp,rsp
+alloc::alloc::alloc:
+src/demo.rs:27
+   13db4:	push   rbx
+   13db5:	sub    rsp,0x28
+library/alloc/src/alloc.rs:99
+   13db9:	call   QWORD PTR [rip+0x40251]        # 54010 &lt;_DYNAMIC+0x238&gt;
+library/alloc/src/alloc.rs:101
+   13dbf:	mov    edi,0x20
+   13dc4:	mov    esi,0x1
+   13dc9:	call   QWORD PTR [rip+0x40249]        # 54018 &lt;_DYNAMIC+0x240&gt;
+&lt;alloc::raw_vec::RawVecInner&gt;::try_allocate_in:
+library/alloc/src/raw_vec/mod.rs:469
+   13dcf:	test   rax,rax
+&lt;alloc::raw_vec::RawVecInner&gt;::with_capacity_in:
+library/alloc/src/raw_vec/mod.rs:434
+   13dd2:	je     13e63 &lt;demo::main+0xb3&gt;
+core::ptr::copy_nonoverlapping::&lt;u8&gt;:
+library/core/src/ptr/mod.rs:551
+   13dd8:	movups xmm0,XMMWORD PTR [rip+0xffffffffffff0c81]        # 4a60 &lt;__abi_tag+0x4764&gt;
+   13ddf:	movups XMMWORD PTR [rax+0x10],xmm0
+   13de3:	movups xmm0,XMMWORD PTR [rip+0xffffffffffff0c66]        # 4a50 &lt;__abi_tag+0x4754&gt;
+   13dea:	movups XMMWORD PTR [rax],xmm0
+&lt;alloc::string::String&gt;::from_utf8_unchecked:
+library/alloc/src/string.rs:1023
+   13ded:	mov    QWORD PTR [rbp-0x20],0x20
+   13df5:	mov    QWORD PTR [rbp-0x18],rax
+   13df9:	mov    QWORD PTR [rbp-0x10],0x20
+   13e01:	lea    rax,[rbp-0x20]
+demo::main:
+src/demo.rs:31
+   13e05:	mov    QWORD PTR [rbp-0x28],rax
+   13e09:	lea    rbx,[rbp-0x28]
+core::ptr::drop_glue::&lt;demo::Q&gt;:
+library/core/src/ptr/mod.rs:825
+   13e0d:	mov    rdi,rbx
+   13e10:	call   13e90 &lt;&lt;demo::Q as core::ops::drop::Drop&gt;::drop&gt;
+&lt;alloc::raw_vec::RawVecInner&gt;::current_memory:
+library/alloc/src/raw_vec/mod.rs:634
+   13e15:	mov    rsi,QWORD PTR [rbp-0x20]
+   13e19:	test   rsi,rsi
+   13e1c:	je     13e2d &lt;demo::main+0x7d&gt;
+library/alloc/src/raw_vec/mod.rs:644
+   13e1e:	mov    rdi,QWORD PTR [rbp-0x18]
+alloc::alloc::dealloc_nonnull:
+library/alloc/src/alloc.rs:128
+   13e22:	mov    edx,0x1
+   13e27:	call   QWORD PTR [rip+0x401f3]        # 54020 &lt;_DYNAMIC+0x248&gt;
+alloc::alloc::alloc:
+library/alloc/src/alloc.rs:99
+   13e2d:	call   QWORD PTR [rip+0x401dd]        # 54010 &lt;_DYNAMIC+0x238&gt;
+demo::main:
+src/demo.rs:35
+   13e33:	call   13e80 &lt;demo::read_kept&gt;
+   13e38:	mov    QWORD PTR [rbp-0x28],rax
+src/demo.rs:36
+   13e3c:	mov    QWORD PTR [rbp-0x20],rbx
+   13e40:	lea    rax,[rip+0x69]        # 13eb0 &lt;&lt;&amp;alloc::string::String as core::fmt::Display&gt;::fmt&gt;
+   13e47:	mov    QWORD PTR [rbp-0x18],rax
+   13e4b:	lea    rdi,[rip+0xffffffffffff0e8c]        # 4cde &lt;__abi_tag+0x49e2&gt;
+   13e52:	lea    rsi,[rbp-0x20]
+   13e56:	call   QWORD PTR [rip+0x401cc]        # 54028 &lt;_DYNAMIC+0x250&gt;
+src/demo.rs:38
+   13e5c:	add    rsp,0x28
+   13e60:	pop    rbx
+   13e61:	pop    rbp
+   13e62:	ret    
+&lt;alloc::raw_vec::RawVecInner&gt;::with_capacity_in:
+library/alloc/src/raw_vec/mod.rs:442
+   13e63:	mov    edi,0x1
+   13e68:	mov    esi,0x20
+   13e6d:	call   QWORD PTR [rip+0x401bd]        # 54030 &lt;_DYNAMIC+0x258&gt;
+demo::main:
+
+0000000000013e80 &lt;demo::read_kept&gt;:
+demo::read_kept:
+src/demo.rs:23
+   13e80:	push   rbp
+   13e81:	mov    rbp,rsp
+core::sync::atomic::atomic_load::&lt;*mut alloc::string::String&gt;:
+library/core/src/sync/atomic.rs:3904
+   13e84:	mov    rax,QWORD PTR [rip+0x4239d]        # 56228 &lt;_RNvCscU8Vk5KhzgW_4demo4KEPT.0&gt;
+demo::read_kept:
+src/demo.rs:25
+   13e8b:	pop    rbp
+   13e8c:	ret    
+
+0000000000013e90 &lt;&lt;demo::Q as core::ops::drop::Drop&gt;::drop&gt;:
+&lt;demo::Q as core::ops::drop::Drop&gt;::drop:
+src/demo.rs:13
+   13e90:	push   rbp
+   13e91:	mov    rbp,rsp
+src/demo.rs:14
+   13e94:	mov    rax,QWORD PTR [rdi]
+   13e97:	test   rax,rax
+   13e9a:	je     13ea3 &lt;&lt;demo::Q as core::ops::drop::Drop&gt;::drop+0x13&gt;
+core::sync::atomic::atomic_store::&lt;*mut alloc::string::String&gt;:
+library/core/src/sync/atomic.rs:3889
+   13e9c:	mov    QWORD PTR [rip+0x42385],rax        # 56228 &lt;_RNvCscU8Vk5KhzgW_4demo4KEPT.0&gt;
+&lt;demo::Q as core::ops::drop::Drop&gt;::drop:
+src/demo.rs:19
+   13ea3:	pop    rbp
+   13ea4:	ret    
+
+</code></pre></details>
+<details><summary>demo / O2：被输出的格式化函数反汇编</summary><pre><code>0000000000013eb0 &lt;&lt;&amp;alloc::string::String as core::fmt::Display&gt;::fmt&gt;:
+   13eb0:	push   rbp
+   13eb1:	mov    rbp,rsp
+   13eb4:	mov    rdx,rsi
+   13eb7:	mov    rax,QWORD PTR [rdi]
+   13eba:	mov    rdi,QWORD PTR [rax+0x8]
+   13ebe:	mov    rsi,QWORD PTR [rax+0x10]
+   13ec2:	pop    rbp
+   13ec3:	jmp    QWORD PTR [rip+0x4016f]        # 54038 &lt;_DYNAMIC+0x260&gt;
+   13ec9:	int3   
+   13eca:	int3   
+   13ecb:	int3   
+   13ecc:	int3   
+   13ecd:	int3   
+   13ece:	int3   
+   13ecf:	int3   </code></pre></details>
+<details><summary>issue_original / O2：被输出的格式化函数反汇编</summary><pre><code>00000000000147f0 &lt;&lt;&amp;&amp;alloc::string::String as core::fmt::Display&gt;::fmt&gt;:
+   147f0:	push   rbp
+   147f1:	mov    rbp,rsp
+   147f4:	mov    rdx,rsi
+   147f7:	mov    rax,QWORD PTR [rdi]
+   147fa:	mov    rax,QWORD PTR [rax]
+   147fd:	mov    rdi,QWORD PTR [rax+0x8]
+   14801:	mov    rsi,QWORD PTR [rax+0x10]
+   14805:	pop    rbp
+   14806:	jmp    QWORD PTR [rip+0x403ac]        # 54bb8 &lt;_DYNAMIC+0x2b0&gt;
+   1480c:	int3   
+   1480d:	int3   
+   1480e:	int3   
+   1480f:	int3   </code></pre></details>
+</section><section id="asan"><h2>附录 B2 / ASan 原始诊断</h2>
+<p>现有 <code>issue_asan.report.txt</code> 报告一次 8 字节读取落在 <code>l</code> 的栈区域：对象范围 <code>[256, 280)</code>，实际访问偏移为 <code>264</code>。shadow 标记为 <code>f8</code>（stack use after scope），程序随后 ABORTING。</p>
+<pre><code>==4086748==ERROR: AddressSanitizer: stack-use-after-scope on address 0x6d900d9f0108 at pc 0x650582b71ceb bp 0x7ffee75d32f0 sp 0x7ffee75d32e8
+READ of size 8 at 0x6d900d9f0108 thread T0
+    [256, 280) &#x27;l&#x27; (line 10) &lt;== Memory access at offset 264 is inside this variable
+SUMMARY: AddressSanitizer: stack-use-after-scope (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104cea) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007) 
+==4086748==ABORTING</code></pre>
+<p>报告首先捕获的是栈上 <code>String</code> 描述信息的过期访问，不应改写为“ASan 已报告 heap-use-after-free”。l 析构释放堆缓冲区是源码和汇编所显示的后续内存风险，但不是这份报告给出的错误类别。</p>
+<details><summary>展开完整 ASan 原始报告</summary><p class="source">来源：<a href="out/issue_asan.report.txt">out/issue_asan.report.txt</a></p><pre><code>=================================================================
+==4086748==ERROR: AddressSanitizer: stack-use-after-scope on address 0x6d900d9f0108 at pc 0x650582b71ceb bp 0x7ffee75d32f0 sp 0x7ffee75d32e8
+READ of size 8 at 0x6d900d9f0108 thread T0
+    #0 0x650582b71cea  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104cea) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #1 0x650582b71642  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104642) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #2 0x650582b71692  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104692) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #3 0x650582babf49  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x13ef49) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #4 0x650582b9d6a0  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x1306a0) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #5 0x650582b98389  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x12b389) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #6 0x650582b6ff63  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x102f63) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #7 0x650582b71d4a  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104d4a) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #8 0x650582b6e98d  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x10198d) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #9 0x650582b6f9d0  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x1029d0) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #10 0x650582b97486  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x12a486) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #11 0x650582b6e78f  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x10178f) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #12 0x650582b71edd  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104edd) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+    #13 0x71900fa29d8f  (/lib/x86_64-linux-gnu/libc.so.6+0x29d8f) (BuildId: 095c7ba148aeca81668091f718047078d57efddb)
+    #14 0x71900fa29e3f  (/lib/x86_64-linux-gnu/libc.so.6+0x29e3f) (BuildId: 095c7ba148aeca81668091f718047078d57efddb)
+    #15 0x650582ab3f24  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x46f24) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+
+Address 0x6d900d9f0108 is located in stack of thread T0 at offset 264 in frame
+    #0 0x650582b6fa5f  (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x102a5f) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007)
+
+  This frame has 7 object(s):
+    [32, 48) &#x27;e.i&#x27;
+    [64, 80) &#x27;args&#x27; (line 16)
+    [96, 104) &#x27;_14&#x27; (line 16)
+    [128, 144) &#x27;k&#x27; (line 15)
+    [160, 184) &#x27;_z&#x27; (line 14)
+    [224, 232) &#x27;q&#x27; (line 11)
+    [256, 280) &#x27;l&#x27; (line 10) &lt;== Memory access at offset 264 is inside this variable
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-use-after-scope (/home/ubuntu/work/rust-issue-164250/out/issue_asan+0x104cea) (BuildId: 3dc597a16261e28acb53b60ac2315727b3a3e007) 
+Shadow bytes around the buggy address:
+  0x6d900d9efe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9eff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9eff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0000: f1 f1 f1 f1 f8 f8 f2 f2 00 00 f2 f2 00 f2 f2 f2
+  0x6d900d9f0080: 00 00 f2 f2 00 00 00 f2 f2 f2 f2 f2 f8 f2 f2 f2
+=&gt;0x6d900d9f0100: f8[f8]f8 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3
+  0x6d900d9f0180: f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3 f3
+  0x6d900d9f0200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x6d900d9f0380: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==4086748==ABORTING
+</code></pre></details>
+</section><section id="repro"><h2>附录 B3 / 原始 safe Rust 复现与拒绝组</h2>
+<h3>原始版：在 Drop 中保存局部引用</h3><p><code>Q&lt;T: 'static + Send&gt;</code> 的析构函数把 <code>T</code> 装入 <code>Box&lt;dyn Any + Send&gt;</code>，保存到全局 <code>KEPT</code>。之后通过 <code>downcast_ref::&lt;&amp;'static String&gt;()</code> 取回。装箱保存的是引用值，不会复制或延长被引用的 <code>String</code> 的寿命。</p>
+<details><summary>展开原始复现源码（safe Rust）</summary><p class="source">来源：<a href="src/issue_original.rs">src/issue_original.rs</a></p><pre><code>// rust-lang/rust#164250 原始复现（issue 正文逐字）
+use std::sync::Mutex;
+static KEPT: Mutex&lt;Vec&lt;Box&lt;dyn std::any::Any + Send&gt;&gt;&gt; = Mutex::new(Vec::new());
+struct Q&lt;T: &#x27;static + Send&gt;(Option&lt;T&gt;);
+impl&lt;T: &#x27;static + Send&gt; Drop for Q&lt;T&gt; {
+    fn drop(&amp;mut self) { if let Some(t) = self.0.take() { KEPT.lock().unwrap().push(Box::new(t)); } }
+}
+fn main() {
+    {
+        let l = String::from(&quot;hello world, this is long enough&quot;);
+        let mut q = Q(None);
+        q.0 = Some(&amp;l);
+    }
+    let _z = String::from(&quot;XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX&quot;);
+    let k = KEPT.lock().unwrap();
+    println!(&quot;{}&quot;, k[0].downcast_ref::&lt;&amp;&#x27;static String&gt;().unwrap());
+}
+</code></pre></details>
+<h3>精简版：保留生命周期问题，缩短机器码</h3><p><code>Q&lt;'a: 'static&gt;(Option&lt;&amp;'a String&gt;)</code> 把约束直接写成生命周期。析构时 <code>let s: &amp;'static String = s;</code> 在声明约束下能够通过类型检查，然后把地址存进全局原子槽位。<code>read_kept()</code> 的裸指针解引用要求对象仍然有效；本例逃逸之后已经不满足该要求。</p>
+<details><summary>展开精简版源码（含一处 unsafe）</summary><p class="source">来源：<a href="src/demo.rs">src/demo.rs</a></p><pre><code>// rust-lang/rust#164250 的精简版：去掉 dyn Any / Vec&lt;Box&lt;..&gt;&gt;，只保留缺陷本体，
+// 让汇编短到能逐行读。
+use std::sync::atomic::{AtomicPtr, Ordering};
+
+// 一个全局槽位，存放 &quot;&amp;&#x27;static String&quot;（用裸指针存，读时还原成 &amp;&#x27;static String）
+static KEPT: AtomicPtr&lt;String&gt; = AtomicPtr::new(std::ptr::null_mut());
+
+// 结构体声明：&#x27;a 必须 &gt;= &#x27;static。也就是说 Q&lt;&#x27;a&gt; 里的引用&quot;保证&quot;活到程序结束
+struct Q&lt;&#x27;a: &#x27;static&gt;(Option&lt;&amp;&#x27;a String&gt;);
+
+impl&lt;&#x27;a: &#x27;static&gt; Drop for Q&lt;&#x27;a&gt; {
+    #[inline(never)]
+    fn drop(&amp;mut self) {
+        if let Some(s) = self.0 {
+            // 在 impl 的 where 子句 &#x27;a: &#x27;static 下，这一行类型完全正确：&amp;&#x27;a String -&gt; &amp;&#x27;static String
+            let s: &amp;&#x27;static String = s;
+            KEPT.store(s as *const String as *mut String, Ordering::Relaxed);
+        }
+    }
+}
+
+#[inline(never)]
+fn read_kept() -&gt; &amp;&#x27;static String {
+    unsafe { &amp;*KEPT.load(Ordering::Relaxed) } // 这里的 unsafe 只是把 Drop 里合法存入的 &amp;&#x27;static 取回来
+}
+
+fn main() {
+    {
+        let l = String::from(&quot;hello world, this is long enough&quot;); // 32 字节堆内存
+        let mut q = Q(None);          // q : Q&lt;&#x27;?0&gt;
+        q.0 = Some(&amp;l);               // 关键：通过&quot;字段赋值&quot;把短命引用塞进去，编译器没拦
+    } // &lt;- 析构顺序：先 q（Drop::drop 把 &amp;l 当作 &amp;&#x27;static 存走），再 l（释放堆内存、栈槽失效）
+
+    let z = String::from(&quot;XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX&quot;); // 同样 32 字节
+    let s: &amp;&#x27;static String = read_kept();
+    println!(&quot;{}&quot;, s);               // 读的是已死的 l
+    drop(z);
+}
+</code></pre></details>
+<h3>对照组：在构造时直接传入 &amp;l</h3><p>对照保留 <code>'a: 'static</code> 声明与 <code>Drop</code>，把关键路径改成直接构造。局部变量不满足静态借用要求，现有编译记录给出 <code>E0597</code>。注意对照组的 Drop 为空，字符串也更短；它验证构造点的生命周期检查，不是完整运行行为的等价测试。</p>
+<details><summary>展开对照组源码</summary><p class="source">来源：<a href="rejected/rejected.rs">rejected/rejected.rs</a></p><pre><code>// 对照组：语义相同，只是把 &quot;先 None 再赋值&quot; 改成 &quot;构造时直接给值&quot;。编译器正确拒绝 (E0597)。
+struct Q&lt;&#x27;a: &#x27;static&gt;(Option&lt;&amp;&#x27;a String&gt;);
+impl&lt;&#x27;a: &#x27;static&gt; Drop for Q&lt;&#x27;a&gt; {
+    fn drop(&amp;mut self) {}
+}
+fn main() {
+    let l = String::from(&quot;hello&quot;);
+    let _q = Q(Some(&amp;l));
+}
+</code></pre></details>
+<details><summary>展开 E0597 编译诊断</summary><p class="source">来源：<a href="out/rejected.compile_error.txt">out/rejected.compile_error.txt</a></p><pre><code>error[E0597]: `l` does not live long enough
+ --&gt; rejected/rejected.rs:8:21
+  |
+7 |     let l = String::from(&quot;hello&quot;);
+  |         - binding `l` declared here
+8 |     let _q = Q(Some(&amp;l));
+  |                -----^^-
+  |                |    |
+  |                |    borrowed value does not live long enough
+  |                this usage requires that `l` is borrowed for `&#x27;static`
+9 | }
+  | - `l` dropped here while still borrowed
+  |
+note: requirement that the value outlives `&#x27;static` introduced here
+ --&gt; rejected/rejected.rs:2:14
+  |
+2 | struct Q&lt;&#x27;a: &#x27;static&gt;(Option&lt;&amp;&#x27;a String&gt;);
+  |              ^^^^^^^
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0597`.
+</code></pre></details>
+</section><section id="evidence"><h2>附录 B4 / 结论范围与环境信息</h2>
+<div class="callout"><strong>当前项目的实验材料证明：带有 <code>'static</code> 约束的结构体，可以在先构造 <code>Q(None)</code>、再对协变字段赋值的路径上接收局部引用；析构函数随后按声明约束把该引用保存到全局，造成对象离开作用域后继续被访问。</strong></div>
+<ul><li><strong>原始复现完全使用 safe Rust。</strong><code>Mutex / Vec / Box / Any</code> 只是保存和取回逃逸引用的载体。精简版用裸指针与一处 <code>unsafe</code> 缩短汇编，不能单凭精简版声称“全 safe 代码造成 UB”；原始版和 ASan 报告提供了这条证据。</li>
+<li><strong>构造与字段赋值的检查结果不同。</strong>直接构造 <code>Q(Some(&amp;l))</code> 的对照组被 E0597 拒绝；先空值构造、后字段赋值的复现组已经生成可执行文件及运行输出。</li>
+<li><strong>运行时出现真实的生命周期越界。</strong>ASan 指向原始版局部变量 <code>l</code> 的栈对象，报告 <code>stack-use-after-scope</code>。</li>
+<li><strong>优化级别改变症状。</strong>O0 保存的输出是 32 个 <code>X</code>；O2 保存的输出是格式化函数的 32 字节机器码。两者都不能当作程序的合法输出承诺。</li></ul>
+<p class="source">上游背景：<a href="https://github.com/rust-lang/rust/issues/164250">rust-lang/rust #164250</a> 的复现代码与本项目原始版主体一致；2026-10-14 查阅时该 issue 为 Open，并标记为 I-unsound、P-high。本文主体结论来自本地材料，不推断修复进度或其他版本的实测结果。</p>
+<h3>可确认的实验环境</h3><div class="table-scroll"><table><thead><tr><th>项目</th><th>材料中的信息</th><th>依据</th></tr></thead><tbody>
+<tr><td>编译器</td><td><code>rustc 1.97.1 (8bab26f4f 2026-07-14)</code></td><td>demo O0/O2 汇编的 <code>.ident</code></td></tr>
+<tr><td>平台</td><td>Linux x86-64，ELF 64-bit PIE</td><td>demo O0/O2 可执行文件头与反汇编</td></tr>
+<tr><td>编译选项</td><td>Edition 2021；opt-level 0 / 2；调试信息；保留帧指针</td><td><code>build.sh</code></td></tr>
+<tr><td>执行位置线索</td><td>脚本注释指定 numa_dev；ASan 路径为 <code>/home/ubuntu/work/rust-issue-164250</code></td><td>脚本与报告；没有单独的远端环境快照</td></tr>
+</tbody></table></div><p class="note">本次工作整理和核验既有材料，没有重新运行远端编译或重做版本矩阵。ASan 产物没有单独的 rustc 版本记录；现有 GDB 文件是调试脚本，没有保存对应的实际会话输出。</p>
+</section><section id="reproduce"><h2>附录 C / 复验方法与 GDB 脚本</h2>
+<p>项目的 <code>build.sh</code> 用 rustc 生成 O0/O2 可执行文件、汇编和普通 MIR，再反汇编、运行两组程序，并检查拒绝组及 ASan。应在对应 Linux 环境中使用；当前文件是 Linux ELF，不能在本机 macOS 直接运行。</p>
+<details><summary>展开现有构建脚本</summary><p class="source">来源：<a href="build.sh">build.sh</a></p><pre><code>#!/usr/bin/env bash
+# 在 numa_dev 上运行：编译 / 运行 / 导出汇编、MIR
+set -u
+cd &quot;$(dirname &quot;$0&quot;)&quot;
+export PATH=$HOME/.cargo/bin:$PATH
+mkdir -p out
+rustc -V
+for opt in 0 2; do
+  for src in issue_original demo; do
+    b=out/${src}_O${opt}
+    rustc --edition 2021 -C opt-level=$opt -g -C debuginfo=2 -C force-frame-pointers=yes \
+      --emit=link=$b,asm=$b.s,mir=$b.mir src/$src.rs -o $b || exit 1
+    objdump -d -M intel --no-show-raw-insn -C $b &gt; $b.objdump
+    printf &#x27;%-24s =&gt; &#x27; &quot;$b&quot;; ./$b
+  done
+done
+echo &quot;--- rejected.rs（对照组，预期编译失败）---&quot;
+rustc --edition 2021 rejected/rejected.rs -o out/rejected 2&gt;&amp;1 | sed &#x27;s/^/    /&#x27;
+echo &quot;--- ASan（stable + RUSTC_BOOTSTRAP 打开 -Zsanitizer）---&quot;
+RUSTC_BOOTSTRAP=1 rustc --edition 2021 -g -Zsanitizer=address src/issue_original.rs -o out/issue_asan 2&gt;&amp;1 | tail -3
+[ -x out/issue_asan ] &amp;&amp; ./out/issue_asan 2&gt;&amp;1 | head -30
+</code></pre></details>
+<p>现有脚本不会保存 <code>*.stdout.xxd.txt</code>、完整 ASan 报告、NLL dump 或附行号汇编。需要补充采集命令，才能重建本文的全部证据：</p>
+<pre><code># 先在项目目录中运行现有脚本（会更新 out/）
+bash build.sh
+
+# 保留二进制标准输出，避免非 UTF-8 字节被终端误解
+./out/demo_O0 | xxd &gt; out/demo_O0.stdout.xxd.txt
+./out/demo_O2 | xxd &gt; out/demo_O2.stdout.xxd.txt
+./out/issue_original_O0 | xxd &gt; out/issue_original_O0.stdout.xxd.txt
+./out/issue_original_O2 | xxd &gt; out/issue_original_O2.stdout.xxd.txt
+
+# 分别保留完整诊断；拒绝组和 ASan 预期以非零状态结束
+rustc --edition 2021 rejected/rejected.rs -o out/rejected   &gt; out/rejected.compile_error.txt 2&gt;&amp;1
+./out/issue_asan &gt; out/issue_asan.report.txt 2&gt;&amp;1
+
+# NLL MIR：使用支持这些 -Z 参数的 rustc；与原材料版本保持一致
+RUSTC_BOOTSTRAP=1 rustc --edition 2021 -Zdump-mir=nll   -Zdump-mir-dir=out/mir src/demo.rs -o out/demo_nll
+RUSTC_BOOTSTRAP=1 rustc --edition 2021 -Zdump-mir=nll   -Zdump-mir-dir=out/mir_rej rejected/rejected.rs -o out/rejected_nll
+
+mkdir -p out/annotated
+objdump -d -l -M intel --no-show-raw-insn -C out/demo_O0
+objdump -d -l -M intel --no-show-raw-insn -C out/demo_O2
+
+# 额外保存环境元数据
+rustc -Vv
+uname -a</code></pre>
+<p class="source">以上为根据现有脚本和产物整理的复验命令，本次没有执行。附行号反汇编命令输出完整结果，需按函数截取后保存；不同版本的 -Z 参数和文件名可能变化。现有 build.sh 会截断 ASan 输出，也未启用 pipefail，复验时应分别检查编译、运行和采集的退出码。</p>
+<h3>已有 GDB 脚本</h3><p>断点地址和栈偏移绑定当前 ELF。脚本假设加载基址为 <code>0x555555554000</code> 并关闭随机化，重新构建后需核对。它们可帮助观察 KEPT、栈槽和堆内容；当前没有实际 GDB 输出，本文没有把脚本中的拟观察内容当成已经获得的现场证据。</p>
+<details><summary>展开 O0 GDB 调试脚本</summary><p class="source">来源：<a href="out/annotated/g0.gdb">out/annotated/g0.gdb</a></p><pre><code>set pagination off
+set language c
+set disable-randomization on
+define dump0
+  printf &quot;rbp=%p\n&quot;, $rbp
+  x/3gx $rbp-0xa0
+  x/gx $rbp-0x88
+  x/3gx $rbp-0x80
+  x/gx (long*)&amp;_RNvCscU8Vk5KhzgW_4demo4KEPT
+end
+break *(0x555555554000+0x14dae)
+break *(0x555555554000+0x14dc7)
+break *(0x555555554000+0x14dd3)
+break *(0x555555554000+0x14e00)
+break *(0x555555554000+0x14e19)
+break *(0x555555554000+0x14e98)
+run
+printf &quot;=== stop 1 pc=%p\n&quot;, $pc
+dump0
+printf &quot;heap(l.ptr): &quot;
+x/4gx *(long*)($rbp-0x98)
+continue
+printf &quot;=== stop 2 pc=%p\n&quot;, $pc
+dump0
+printf &quot;heap(l.ptr): &quot;
+x/4gx *(long*)($rbp-0x98)
+continue
+printf &quot;=== stop 3 pc=%p\n&quot;, $pc
+dump0
+printf &quot;heap(l.ptr): &quot;
+x/4gx *(long*)($rbp-0x98)
+continue
+printf &quot;=== stop 4 pc=%p\n&quot;, $pc
+dump0
+printf &quot;heap(l.ptr): &quot;
+x/4gx *(long*)($rbp-0x98)
+continue
+printf &quot;=== stop 5 pc=%p\n&quot;, $pc
+dump0
+printf &quot;heap(l.ptr): &quot;
+x/4gx *(long*)($rbp-0x98)
+continue
+printf &quot;=== stop 6 pc=%p\n&quot;, $pc
+dump0
+printf &quot;heap(l.ptr): &quot;
+x/4gx *(long*)($rbp-0x98)
+continue
+</code></pre></details>
+<details><summary>展开 O2 GDB 调试脚本</summary><p class="source">来源：<a href="out/annotated/g2.gdb">out/annotated/g2.gdb</a></p><pre><code>set pagination off
+set disable-randomization on
+set language c
+define d2
+  printf &quot;=== pc=%p rbp=%p rbx=%p\n&quot;, $pc, $rbp, $rbx
+  x/5gx $rbp-0x28
+  x/gx (long*)(0x555555554000+0x56228)
+end
+break *(0x555555554000+0x13e05)
+break *(0x555555554000+0x13e0d)
+break *(0x555555554000+0x13e15)
+break *(0x555555554000+0x13e2d)
+break *(0x555555554000+0x13e3c)
+break *(0x555555554000+0x13e56)
+run
+d2
+x/4gx *(long*)($rbp-0x18)
+continue
+d2
+x/4gx *(long*)($rbp-0x18)
+continue
+d2
+x/4gx *(long*)($rbp-0x18)
+continue
+d2
+x/4gx *(long*)($rbp-0x18)
+continue
+d2
+x/4gx *(long*)($rbp-0x18)
+continue
+d2
+x/s *(long*)($rbp-0x18)
+continue
+</code></pre></details>
+</section><section id="materials"><h2>原始材料索引与校验值</h2>
+<p>源码、构建脚本、输出记录、诊断、关键 NLL 与精简版汇编已嵌入本文，可离线单独阅读。下表保留项目内全部原始材料的相对路径链接；链接需要本 HTML 与项目目录一同保留。SHA-256 对应整理时的文件内容，便于核对附件是否一致。</p><div class="table-scroll"><table><thead><tr><th>原始文件</th><th>大小</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td><a href="build.sh">build.sh</a></td><td>904 B</td><td class="hash"><code>029be6f9b4d1208bbcbc7665271b200adc5ab6613faceedf1e81448acff94df5</code></td></tr>
+<tr><td><a href="out/annotated/demo_O0.main_drop_readkept.lined.txt">out/annotated/demo_O0.main_drop_readkept.lined.txt</a></td><td>5,911 B</td><td class="hash"><code>e22f52c2a9aa38195946c9be89fb0773e772903f67bd654a5a74c745520b9ee2</code></td></tr>
+<tr><td><a href="out/annotated/demo_O2.main_drop_readkept.lined.txt">out/annotated/demo_O2.main_drop_readkept.lined.txt</a></td><td>3,872 B</td><td class="hash"><code>4a449a97111f71a3a69ace92fcc950da0b0a3570921c8836ad63d6a8ae879e1c</code></td></tr>
+<tr><td><a href="out/annotated/g0.gdb">out/annotated/g0.gdb</a></td><td>981 B</td><td class="hash"><code>97f373d110ffa3a7c6ff404391dbbcb829b0708ce678c8cf5a1084c5f31dd848</code></td></tr>
+<tr><td><a href="out/annotated/g2.gdb">out/annotated/g2.gdb</a></td><td>610 B</td><td class="hash"><code>006a264539aafde597e34f988a7def5a00b4b83b9b3c2885e2a48b3824cc53ad</code></td></tr>
+<tr><td><a href="out/demo_O0">out/demo_O0</a></td><td>4,390,456 B</td><td class="hash"><code>99190a9466d8c796c6d2a5a8959072f97a807e11a5b4474f044caedb966f63ee</code></td></tr>
+<tr><td><a href="out/demo_O0.mir">out/demo_O0.mir</a></td><td>7,280 B</td><td class="hash"><code>0d2845cb4e672c1092146bb6d21fd2f136f66a528933d94f8d156090751b1565</code></td></tr>
+<tr><td><a href="out/demo_O0.objdump">out/demo_O0.objdump</a></td><td>3,393,615 B</td><td class="hash"><code>4d75a36a09f9a2248206d363ce6e0f4471df2710ad9a2565149611f919d566e9</code></td></tr>
+<tr><td><a href="out/demo_O0.s">out/demo_O0.s</a></td><td>170,655 B</td><td class="hash"><code>dd82435f2640d79cf0482ca68b5a6a14a842aec7f7c0fd100fdc95b1d406bb08</code></td></tr>
+<tr><td><a href="out/demo_O0.stdout.xxd.txt">out/demo_O0.stdout.xxd.txt</a></td><td>189 B</td><td class="hash"><code>fa2052e4f400d1b1f108ef558b98e4b3bd235e986c404d58da363a1ad616142c</code></td></tr>
+<tr><td><a href="out/demo_O2">out/demo_O2</a></td><td>4,376,280 B</td><td class="hash"><code>0666606b84f882d8345fffad201b3de8f5e19ed02dd3433395b7436ca5037fe8</code></td></tr>
+<tr><td><a href="out/demo_O2.mir">out/demo_O2.mir</a></td><td>39,082 B</td><td class="hash"><code>87a900bc6cf2dab90ace721e5155996871510f0ec32f3f63dd84e1be803cb9fe</code></td></tr>
+<tr><td><a href="out/demo_O2.objdump">out/demo_O2.objdump</a></td><td>3,354,807 B</td><td class="hash"><code>7b14c1ab36b4e4480dc59b014f10217208ef59c4e93631138e70f3dc3b625d3d</code></td></tr>
+<tr><td><a href="out/demo_O2.s">out/demo_O2.s</a></td><td>106,544 B</td><td class="hash"><code>7308b503c059cefb0a8efb5a1a1cc141987d1b62f3e8c9c7550a97b22241a80f</code></td></tr>
+<tr><td><a href="out/demo_O2.stdout.xxd.txt">out/demo_O2.stdout.xxd.txt</a></td><td>189 B</td><td class="hash"><code>a59ce5ef7bf11aa9f0ea7217ae1aa8a61d78f98f531b37e84ecd8e5c1cec8f2f</code></td></tr>
+<tr><td><a href="out/issue_asan">out/issue_asan</a></td><td>7,093,232 B</td><td class="hash"><code>de7f23a192a7ef82e59935f7ba8cc715502bbfa71a0b37d69e9f98c4c4e9dfde</code></td></tr>
+<tr><td><a href="out/issue_asan.report.txt">out/issue_asan.report.txt</a></td><td>4,644 B</td><td class="hash"><code>f83b94b680467f119d502977f815908f16b166016d677eb55afc592d3e206d0b</code></td></tr>
+<tr><td><a href="out/issue_original_O0">out/issue_original_O0</a></td><td>4,453,472 B</td><td class="hash"><code>ca5f5a3cef9b0eb0c920bbddec5afedd4198a279a8e117a6104cafb9ef1c2c88</code></td></tr>
+<tr><td><a href="out/issue_original_O0.mir">out/issue_original_O0.mir</a></td><td>9,935 B</td><td class="hash"><code>a8a4a500c5bb0ec42a3c461062be4b7a2b5124f4a6ceab5100900335dbd93c86</code></td></tr>
+<tr><td><a href="out/issue_original_O0.objdump">out/issue_original_O0.objdump</a></td><td>3,459,950 B</td><td class="hash"><code>ab10b0dad99ba82e2474a79f2bf9ab5fd94bafd8b59b9f4209e299aee65b95a5</code></td></tr>
+<tr><td><a href="out/issue_original_O0.s">out/issue_original_O0.s</a></td><td>412,689 B</td><td class="hash"><code>6353decc694318f360b171a11867f4be2d896fffee7683dff5ded531b4957164</code></td></tr>
+<tr><td><a href="out/issue_original_O0.stdout.xxd.txt">out/issue_original_O0.stdout.xxd.txt</a></td><td>189 B</td><td class="hash"><code>fa2052e4f400d1b1f108ef558b98e4b3bd235e986c404d58da363a1ad616142c</code></td></tr>
+<tr><td><a href="out/issue_original_O2">out/issue_original_O2</a></td><td>4,423,296 B</td><td class="hash"><code>667fbb127cfb2bc20618b292592b86156813ffe3beae69587e68710fb3193359</code></td></tr>
+<tr><td><a href="out/issue_original_O2.mir">out/issue_original_O2.mir</a></td><td>50,966 B</td><td class="hash"><code>f3a124cb7121e4ca469330033c9878c884ef0bb6f25a5c06ce2bee01c83ffc50</code></td></tr>
+<tr><td><a href="out/issue_original_O2.objdump">out/issue_original_O2.objdump</a></td><td>3,381,994 B</td><td class="hash"><code>50ca9b6e7b2c21a2bb7d5b8be9dedd67e5d06a5798a6d2fabdd0096f7793eab1</code></td></tr>
+<tr><td><a href="out/issue_original_O2.s">out/issue_original_O2.s</a></td><td>284,155 B</td><td class="hash"><code>bc51a651e9b8071d725d9e084510a743437e89d4db9b8ce8af07489d4c981cfe</code></td></tr>
+<tr><td><a href="out/issue_original_O2.stdout.xxd.txt">out/issue_original_O2.stdout.xxd.txt</a></td><td>189 B</td><td class="hash"><code>9e4a512d10f75de9bfaaca75399f10333fe0bdae93b4f288bcc62f27f1b5ab60</code></td></tr>
+<tr><td><a href="out/mir/demo.KEPT.-------.nll.0.mir">out/mir/demo.KEPT.-------.nll.0.mir</a></td><td>1,421 B</td><td class="hash"><code>75c344b7e0613a92def8cfd67cd9f09e89d07271a514cdbe86ebe61f4c97f6a6</code></td></tr>
+<tr><td><a href="out/mir/demo.KEPT.-------.nll.0.regioncx.all.dot">out/mir/demo.KEPT.-------.nll.0.regioncx.all.dot</a></td><td>116 B</td><td class="hash"><code>3ab1f85129861537dd62d96ed602f4154620411800d97ef426f0adb51c63f81a</code></td></tr>
+<tr><td><a href="out/mir/demo.KEPT.-------.nll.0.regioncx.scc.dot">out/mir/demo.KEPT.-------.nll.0.regioncx.scc.dot</a></td><td>162 B</td><td class="hash"><code>2b5ad8aaecdf6d27a295b9e6d4fc7437c42658407ef430a9c19bd33ec803023c</code></td></tr>
+<tr><td><a href="out/mir/demo.main.-------.nll.0.mir">out/mir/demo.main.-------.nll.0.mir</a></td><td>21,044 B</td><td class="hash"><code>3a7fc8adc11f0bc3466b9928ec61a00e3891519a6d27346ce6a6789604971d5e</code></td></tr>
+<tr><td><a href="out/mir/demo.main.-------.nll.0.regioncx.all.dot">out/mir/demo.main.-------.nll.0.regioncx.all.dot</a></td><td>4,982 B</td><td class="hash"><code>d13cfde2265e156ed9db47b1b9f13f30366cb3644f16a6285cb71a8476f0c916</code></td></tr>
+<tr><td><a href="out/mir/demo.main.-------.nll.0.regioncx.scc.dot">out/mir/demo.main.-------.nll.0.regioncx.scc.dot</a></td><td>4,698 B</td><td class="hash"><code>235993f06410414f9a98e57caab72a1bb3f34f033472fbc16b2535098be8832c</code></td></tr>
+<tr><td><a href="out/mir/demo.read_kept.-------.nll.0.mir">out/mir/demo.read_kept.-------.nll.0.mir</a></td><td>2,734 B</td><td class="hash"><code>9332fd2d7278c5ba4b3d12d36a98c607dae7be3ced9e04052db7f63c3f78039b</code></td></tr>
+<tr><td><a href="out/mir/demo.read_kept.-------.nll.0.regioncx.all.dot">out/mir/demo.read_kept.-------.nll.0.regioncx.all.dot</a></td><td>798 B</td><td class="hash"><code>a3af6ec4d2a004f8f6bdaf7823992635de7892e81bd6adb28c4543dffc65f69f</code></td></tr>
+<tr><td><a href="out/mir/demo.read_kept.-------.nll.0.regioncx.scc.dot">out/mir/demo.read_kept.-------.nll.0.regioncx.scc.dot</a></td><td>723 B</td><td class="hash"><code>10022fd1e1490945dae59d6233555b645d570e8247867fe6b0f104164b1280e2</code></td></tr>
+<tr><td><a href="out/mir/demo.%7Bimpl%230%7D-drop.-------.nll.0.mir">out/mir/demo.{impl#0}-drop.-------.nll.0.mir</a></td><td>7,184 B</td><td class="hash"><code>8a9ab9f1a2bca779443ce01db11e0b7616262500e9e89d130524e374678a59a2</code></td></tr>
+<tr><td><a href="out/mir/demo.%7Bimpl%230%7D-drop.-------.nll.0.regioncx.all.dot">out/mir/demo.{impl#0}-drop.-------.nll.0.regioncx.all.dot</a></td><td>1,678 B</td><td class="hash"><code>e4f9bdd4cc235aa33063a94f7d07041cf7427ba41cc43ba4ec30e3a137e06ebf</code></td></tr>
+<tr><td><a href="out/mir/demo.%7Bimpl%230%7D-drop.-------.nll.0.regioncx.scc.dot">out/mir/demo.{impl#0}-drop.-------.nll.0.regioncx.scc.dot</a></td><td>1,054 B</td><td class="hash"><code>65fd989628a63722f6c035586a3af411a76d60df535255c0e43958a9f0812fcc</code></td></tr>
+<tr><td><a href="out/mir_rej/rejected.main.-------.nll.0.mir">out/mir_rej/rejected.main.-------.nll.0.mir</a></td><td>4,177 B</td><td class="hash"><code>5bcb58444246d37888a272c64527cdf7e1ad45671778d4878d4cb6e48ce19e8d</code></td></tr>
+<tr><td><a href="out/mir_rej/rejected.main.-------.nll.0.regioncx.all.dot">out/mir_rej/rejected.main.-------.nll.0.regioncx.all.dot</a></td><td>953 B</td><td class="hash"><code>9195239baf4a613cf0a3f378ce898a79b8da715f374c18325e02712b19ca64b8</code></td></tr>
+<tr><td><a href="out/mir_rej/rejected.main.-------.nll.0.regioncx.scc.dot">out/mir_rej/rejected.main.-------.nll.0.regioncx.scc.dot</a></td><td>557 B</td><td class="hash"><code>aeeaf613d332f33a5658f0b188db4dfabdce848f0094e1af0c4630e142e3572c</code></td></tr>
+<tr><td><a href="out/mir_rej/rejected.%7Bimpl%230%7D-drop.-------.nll.0.mir">out/mir_rej/rejected.{impl#0}-drop.-------.nll.0.mir</a></td><td>1,204 B</td><td class="hash"><code>17c0dad45fc126d42f6ff4b3855062ab44981b34093b3942966446126a9e7a56</code></td></tr>
+<tr><td><a href="out/mir_rej/rejected.%7Bimpl%230%7D-drop.-------.nll.0.regioncx.all.dot">out/mir_rej/rejected.{impl#0}-drop.-------.nll.0.regioncx.all.dot</a></td><td>410 B</td><td class="hash"><code>ff5e8fd664c6a0ad08782ed3205fa70f1ec099e2765ec2c15b51fbb7a5c29d9d</code></td></tr>
+<tr><td><a href="out/mir_rej/rejected.%7Bimpl%230%7D-drop.-------.nll.0.regioncx.scc.dot">out/mir_rej/rejected.{impl#0}-drop.-------.nll.0.regioncx.scc.dot</a></td><td>340 B</td><td class="hash"><code>5a3d259f0f24b94382c3b40e48127424c8db4015d973f21a5f469faab2963984</code></td></tr>
+<tr><td><a href="out/rejected.compile_error.txt">out/rejected.compile_error.txt</a></td><td>720 B</td><td class="hash"><code>7cfc219903fb6d2d211689c43c229f288ce88f0ede6915fb1705f2e06f8ed432</code></td></tr>
+<tr><td><a href="rejected/rejected.rs">rejected/rejected.rs</a></td><td>308 B</td><td class="hash"><code>7c7416fe9999e65e7f8f9e8f044a08b5da5e3a23b29be43abe861536ed8468fa</code></td></tr>
+<tr><td><a href="src/demo.rs">src/demo.rs</a></td><td>1,641 B</td><td class="hash"><code>441407fd9e14ff2b4f1f8d8f18b84284b94ce71a70cd5bd45d576bb921d1a6ae</code></td></tr>
+<tr><td><a href="src/issue_original.rs">src/issue_original.rs</a></td><td>660 B</td><td class="hash"><code>cd74f58c6fab47482d37612116bdc4113e3cae3b650694c22c7924233afcc2c0</code></td></tr>
+</tbody></table></div>
+</section><footer>基于当前项目材料整理 · 关键原文已内嵌 · 浏览器可直接打开或打印</footer></main>
+<script>
+(function(){
+// src/demo.rs 第 9–37 行原文
+var SRC={9:"struct Q<'a: 'static>(Option<&'a String>);",10:"",11:"impl<'a: 'static> Drop for Q<'a> {",12:"    #[inline(never)]",13:"    fn drop(&mut self) {",14:"        if let Some(s) = self.0 {",15:"            // 在 'a: 'static 下类型正确：&'a String -> &'static String",16:"            let s: &'static String = s;",17:"            KEPT.store(s as *const String as *mut String, Ordering::Relaxed);",18:"        }",19:"    }",20:"}",21:"",22:"#[inline(never)]",23:"fn read_kept() -> &'static String {",24:"    unsafe { &*KEPT.load(Ordering::Relaxed) }",25:"}",26:"",27:"fn main() {",28:"    {",29:"        let l = String::from(\"hello world, this is long enough\");",30:"        let mut q = Q(None);",31:"        q.0 = Some(&l);",32:"    } // 先 drop(q)，再 drop(l)",33:"",34:"    let z = String::from(\"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\");",35:"    let s: &'static String = read_kept();",36:"    println!(\"{}\", s);",37:"    drop(z);"};
+// O2 反汇编：[地址, 指令, 注释]
+var ASM=[
+["fn","demo::main"],
+["13db0","push rbp",""],["13db1","mov rbp,rsp",""],["13db4","push rbx",""],["13db5","sub rsp,0x28","栈帧 0x28 字节"],
+["13db9","call [__rust_no_alloc_shim_is_unstable_v2]","分配器钩子"],
+["13dbf","mov edi,0x20","size = 32"],["13dc4","mov esi,0x1","align = 1"],
+["13dc9","call [__rust_alloc]","rax = H"],["13dcf","test rax,rax",""],["13dd2","je 13e63","分配失败"],
+["13dd8","movups xmm0,[rip+…]","字面量后 16 字节"],["13ddf","movups [rax+0x10],xmm0",""],
+["13de3","movups xmm0,[rip+…]","字面量前 16 字节"],["13dea","movups [rax],xmm0",""],
+["13ded","mov QWORD PTR [rbp-0x20],0x20","l.cap = 32"],["13df5","mov QWORD PTR [rbp-0x18],rax","l.ptr = H"],["13df9","mov QWORD PTR [rbp-0x10],0x20","l.len = 32"],
+["13e01","lea rax,[rbp-0x20]","rax = A = &l"],["13e05","mov QWORD PTR [rbp-0x28],rax","q.0 = Some(A)"],
+["13e09","lea rbx,[rbp-0x28]","rbx = &q"],["13e0d","mov rdi,rbx","参数 &mut q"],["13e10","call Q::drop","drop(q)"],
+["13e15","mov rsi,QWORD PTR [rbp-0x20]","读 l.cap"],["13e19","test rsi,rsi",""],["13e1c","je 13e2d","cap 为 0 则跳过"],
+["13e1e","mov rdi,QWORD PTR [rbp-0x18]","读 l.ptr = H"],["13e22","mov edx,0x1",""],["13e27","call [__rust_dealloc]","释放 H（drop l）"],
+["13e2d","call [__rust_no_alloc_shim_is_unstable_v2]","z 仅剩的痕迹"],
+["13e33","call read_kept","rax = A"],["13e38","mov QWORD PTR [rbp-0x28],rax","s = A（复用 q 的槽）"],
+["13e3c","mov QWORD PTR [rbp-0x20],rbx","[A] = &s（覆盖 l.cap）"],["13e40","lea rax,[rip+0x69]","rax = F（fmt 函数）"],["13e47","mov QWORD PTR [rbp-0x18],rax","[A+8] = F（覆盖 l.ptr）"],
+["13e4b","lea rdi,[rip+…]","格式模板"],["13e52","lea rsi,[rbp-0x20]","参数数组 = A"],["13e56","call [std::io::_print]","println!"],
+["13e5c","add rsp,0x28",""],["13e60","pop rbx",""],["13e61","pop rbp",""],["13e62","ret",""],
+["fn","<demo::Q as Drop>::drop"],
+["13e90","push rbp",""],["13e91","mov rbp,rsp",""],["13e94","mov rax,QWORD PTR [rdi]","rax = q.0 = A"],["13e97","test rax,rax","None?"],["13e9a","je 13ea3",""],
+["13e9c","mov QWORD PTR [rip+0x42385],rax","KEPT = A"],["13ea3","pop rbp",""],["13ea4","ret",""],
+["fn","demo::read_kept"],
+["13e80","push rbp",""],["13e81","mov rbp,rsp",""],["13e84","mov rax,QWORD PTR [rip+0x4239d]","rax = KEPT = A"],["13e8b","pop rbp",""],["13e8c","ret",""],
+["fn","<&String as Display>::fmt  (F = 0x13eb0)"],
+["13eb0","push rbp",""],["13eb1","mov rbp,rsp",""],["13eb4","mov rdx,rsi",""],
+["13eb7","mov rax,QWORD PTR [rdi]","rdi = &s → rax = A"],["13eba","mov rdi,QWORD PTR [rax+0x8]","“字符指针” = [A+8] = F"],["13ebe","mov rsi,QWORD PTR [rax+0x10]","“长度” = [A+16] = 32"],
+["13ec2","pop rbp",""],["13ec3","jmp [rip+0x4016f]","输出 (指针, 长度)"]];
+function R(a,b){var o=[],on=false;ASM.forEach(function(x){if(x[0]==="fn")return;if(x[0]===a)on=true;if(on)o.push(x[0]);if(x[0]===b)on=false;});return o;}
+// 内存行：[位置, 值, 含义, 状态]
+var E="empty",L="live",N="new",D="dead",O="over";
+function M(q,c0,c8,c16,kept,heap){return [["rbp-0x28"].concat(q),["rbp-0x20 (A)"].concat(c0),["rbp-0x18 (A+8)"].concat(c8),["rbp-0x10 (A+16)"].concat(c16),["sep"],["KEPT"].concat(kept),["堆 H"].concat(heap)];}
+var S=[
+{src:[29],asm:R("13db9","13dea"),tag:"分配",title:"String::from：申请 32 字节堆内存并复制字面量",
+ text:"<p><code>__rust_alloc(32, 1)</code> 返回堆地址 H，两条 <code>movups</code> 各复制 16 字节字面量。String::from 被完全内联，没有函数调用。</p>",
+ mem:M(["—","未使用",E],["—","未使用",E],["—","未使用",E],["—","未使用",E],["null","",E],["\"hello world, …\"","32 字节，已分配",N])},
+{src:[29],asm:R("13ded","13df9"),tag:"构造",title:"把 String 的三个字写到栈上：l 诞生于 A = rbp-0x20",
+ text:"<p>三条 <code>mov</code> 写入 cap / ptr / len。从这一刻起，A 处的 24 字节就是变量 <code>l</code>。</p>",
+ mem:M(["—","未使用",E],["32","l.cap",N],["H","l.ptr",N],["32","l.len",N],["null","",E],["\"hello world, …\"","由 l 拥有",L])},
+{src:[30,31],asm:R("13e01","13e05"),tag:"缺陷入口",bug:1,title:"q.0 = Some(&l)：&l 就是一条 lea 算出的地址",
+ text:"<p><code>lea rax,[rbp-0x20]</code> 得到 A，<code>mov</code> 存进 q 的槽位。<code>Q(None)</code> 没有留下任何指令（null 立即被覆盖，O2 直接删掉）。</p><p class='why'>这两条指令本不该存在：q 的类型要求里面的引用是 <code>'static</code>，而 <code>l</code> 只活到第 32 行。编译器在这里漏检（见第 4 节）。指令里也看不到任何“生命周期”。</p>",
+ mem:M(["A","q.0 = Some(&l)",N],["32","l.cap",L],["H","l.ptr",L],["32","l.len",L],["null","",E],["\"hello world, …\"","由 l 拥有",L])},
+{src:[32,13,14,16,17],asm:R("13e09","13e10").concat(R("13e94","13e9c")),tag:"逃逸",bug:1,title:"块结束，先析构 q：Drop 把 A 存进全局 KEPT",
+ text:"<p>析构顺序与声明相反，先 <code>q</code> 后 <code>l</code>。<code>Q::drop</code> 读出 <code>[rdi]</code> = A，非空就 <code>mov</code> 到 KEPT。</p><p class='why'>第 16 行 <code>let s: &amp;'static String = s;</code> 没有对应任何指令：类型变了，值没变，对象也没有被延寿。Relaxed 原子 store 在 x86 上就是普通 <code>mov</code>。</p>",
+ mem:M(["A","q（析构中）",L],["32","l.cap",L],["H","l.ptr",L],["32","l.len",L],["A","局部地址逃逸到全局",N],["\"hello world, …\"","由 l 拥有",L])},
+{src:[32],asm:R("13e15","13e27"),tag:"析构",bug:1,title:"再析构 l：释放堆块 H，KEPT 里的 A 成了悬垂地址",
+ text:"<p>读 l.cap、l.ptr，调用 <code>__rust_dealloc(H, 32, 1)</code>。栈上的 24 字节没有被清零，它们从此不再属于任何活着的变量。</p><p class='why'>没有任何指令去清空 KEPT，机器也无从知道 KEPT 里存的是 l 的地址。</p>",
+ mem:M(["A","q 已析构，槽位空闲",D],["32","旧 l.cap（残留）",D],["H","旧 l.ptr（残留）",D],["32","旧 l.len（残留）",D],["A","⚠ 指向已失效的 l",O],["(已释放)","可被再次分配",D])},
+{src:[34,37],asm:R("13e2d","13e2d"),tag:"优化",title:"let z：O2 把整个 z 优化掉了",
+ text:"<p>z 从未被读取，它的分配、复制、释放都被删除，只剩一次分配器钩子调用。所以 O2 的输出与 z 无关。O0 的情况不同，见 5.4 节。</p>",
+ mem:M(["A","空闲",D],["32","旧 l.cap（残留）",D],["H","旧 l.ptr（残留）",D],["32","旧 l.len（残留）",D],["A","⚠ 指向已失效的 l",O],["(已释放)","",D])},
+{src:[35,23,24],asm:R("13e33","13e38").concat(R("13e84","13e84")),tag:"取回",title:"read_kept：取回 A，作为 s 存进原来 q 的槽位",
+ text:"<p><code>read_kept</code> 就一条 <code>mov rax,[KEPT]</code>。返回值 A 存到 <code>[rbp-0x28]</code>，编译器把已经失效的 q 的槽复用给 <code>s</code>，这是合法优化。</p>",
+ mem:M(["A","s（复用 q 的槽）",N],["32","旧 l.cap（残留）",D],["H","旧 l.ptr（残留）",D],["32","旧 l.len（残留）",D],["A","",O],["(已释放)","",D])},
+{src:[36],asm:R("13e3c","13e47"),tag:"栈槽复用",bug:1,title:"println! 的参数写进了 l 的旧栈槽：A 处不再是 String",
+ text:"<p>构造 <code>fmt::Argument</code>：值指针 &amp;s（rbx = rbp-0x28）写到 <code>[A]</code>，格式化函数地址 F 写到 <code>[A+8]</code>。l 的栈槽已经失效，编译器把它分配给新数据，这一步本身合法。</p><p class='why'>但 s 仍然指向 A。现在 A 处是一个 <code>fmt::Argument</code>，原来的 ptr 字被 F 覆盖，len 字还残留着 32。</p>",
+ mem:M(["A","s",L],["&s","Argument.value（覆盖 l.cap）",O],["F = 0x13eb0","Argument.formatter（覆盖 l.ptr）",O],["32","旧 l.len 仍残留",D],["A","",O],["(已释放)","",D])},
+{src:[36],asm:R("13e4b","13e56").concat(R("13eb7","13ec3")),tag:"失效读取",bug:1,title:"fmt 把 A 当 String 读：指针 = F，长度 = 32，打印出自己的机器码",
+ text:"<p><code>_print</code> 调用 F（rdi = &amp;s）。F 执行 <code>rax=[rdi]</code> 得到 A，再按 String 布局读 <code>[A+8]</code>、<code>[A+16]</code>：拿到的“字符指针”是 F 本身，“长度”是 32。</p><p class='why'>这两次读取就是失效访问（ASan 报的就是 l 内偏移 +8 处的 8 字节读）。最终输出 F 起始的 32 字节，也就是这个函数自己的机器码，逐字节解码见 5.3 节。</p>",
+ mem:M(["A","s",L],["&s","Argument.value",O],["F","被当作 String.ptr 读取",O],["32","被当作 String.len 读取",O],["A","",O],["(已释放)","",D])}
+];
+var src=document.getElementById("src"),asm=document.getElementById("asm"),cur=0,lineEls={},asmEls={};
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+var firstStep={};S.forEach(function(s,i){s.src.forEach(function(l){if(!(l in firstStep))firstStep[l]=i;});});
+for(var n=9;n<=37;n++){var d=el("span","ln"+(n in firstStep?" click":""));d.appendChild(el("span","no",n<10?"0"+n:String(n)));
+ var t=SRC[n];if(/^\s*\/\//.test(t)||t.indexOf("} //")>=0){var k=t.indexOf("//");d.appendChild(document.createTextNode(t.slice(0,k)));d.appendChild(el("span","cm",t.slice(k)));}else d.appendChild(document.createTextNode(t));
+ if(n in firstStep){(function(n){d.addEventListener("click",function(){go(firstStep[n]);});})(n);}
+ src.appendChild(d);lineEls[n]=d;}
+ASM.forEach(function(x){if(x[0]==="fn"){asm.appendChild(el("span","fn",x[1]+":"));return;}
+ var d=el("span","ln");d.appendChild(el("span","addr",x[0]+"  "));d.appendChild(document.createTextNode(x[1].length<34?(x[1]+"                                  ").slice(0,34):x[1]+"  "));
+ if(x[2])d.appendChild(el("span","asm-note","; "+x[2]));asm.appendChild(d);asmEls[x[0]]=d;});
+var dots=document.getElementById("dots");S.forEach(function(s,i){var b=el("button",s.bug?"bug":"",String(i+1));b.type="button";b.title=s.title;b.addEventListener("click",function(){go(i);});dots.appendChild(b);});
+var tb=document.querySelector("#steptable tbody");S.forEach(function(s,i){var tr=document.createElement("tr");tr.appendChild(el("td","",String(i+1)));
+ tr.appendChild(el("td","","L"+s.src.join(", L")));var a=el("td");var c=el("code","",s.asm.map(function(x){var r=ASM.filter(function(y){return y[0]===x;})[0];return r[1];}).filter(function(x){return !/^(push|pop|test|je|ret)/.test(x);}).slice(0,4).join(" ; "));a.appendChild(c);tr.appendChild(a);
+ var w=el("td");w.innerHTML="<b>"+s.title+"</b>";tr.appendChild(w);tb.appendChild(tr);});
+function go(i){cur=Math.max(0,Math.min(S.length-1,i));var s=S[cur];
+ Object.keys(lineEls).forEach(function(k){lineEls[k].classList.remove("on","key");});
+ s.src.forEach(function(l){if(lineEls[l])lineEls[l].classList.add(s.bug?"key":"on");});
+ var first=null;Object.keys(asmEls).forEach(function(k){var on=s.asm.indexOf(k)>=0;asmEls[k].classList.toggle(s.bug?"key":"on",on);asmEls[k].classList.remove(s.bug?"on":"key");asmEls[k].classList.toggle("dim",!on);if(on&&!first)first=asmEls[k];});
+ if(first){asm.scrollTop=first.offsetTop-60;}
+ var sl=lineEls[s.src[0]];if(sl){src.scrollTop=sl.offsetTop-60;}
+ var tag=document.getElementById("st-tag");tag.textContent="第 "+(cur+1)+"/"+S.length+" 步 · "+s.tag;tag.className="tag"+(s.bug?" bug":"");
+ document.getElementById("st-title").textContent=s.title;document.getElementById("st-text").innerHTML=s.text;
+ var m=document.getElementById("mem");m.innerHTML="";s.mem.forEach(function(r){var tr=document.createElement("tr");
+  if(r[0]==="sep"){tr.className="sep";var td=el("td","","全局 / 堆");td.colSpan=3;tr.appendChild(td);m.appendChild(tr);return;}
+  tr.className=r[3];tr.appendChild(el("td","",r[0]));tr.appendChild(el("td","v",r[1]));tr.appendChild(el("td","",r[2]));m.appendChild(tr);});
+ Array.prototype.forEach.call(dots.children,function(b,j){b.classList.toggle("on",j===cur);});
+ document.getElementById("prev").disabled=cur===0;document.getElementById("next").disabled=cur===S.length-1;}
+document.getElementById("prev").addEventListener("click",function(){go(cur-1);});
+document.getElementById("next").addEventListener("click",function(){go(cur+1);});
+document.getElementById("stepper").tabIndex=0;
+document.addEventListener("keydown",function(e){var r=document.getElementById("lab").getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return;
+ if(e.key==="ArrowRight"){go(cur+1);e.preventDefault();}else if(e.key==="ArrowLeft"){go(cur-1);e.preventDefault();}});
+go(0);
+})();
+</script>
+</body></html>

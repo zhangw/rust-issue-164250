@@ -1,0 +1,384 @@
+// MIR for `main` 0 nll
+
+| Free Region Mapping
+| '?0 | Global | ['?0, '?1]
+| '?1 | Local | ['?1]
+|
+| Inferred Region Values
+| '?0 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?1 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?1}
+| '?2 | U0 | {bb0[2]}
+| '?3 | U0 | {bb0[2]}
+| '?4 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?5 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?6 | U0 | {bb1[5..=18]}
+| '?7 | U0 | {bb1[5..=18]}
+| '?8 | U0 | {bb1[5..=18]}
+| '?9 | U0 | {bb1[5..=18]}
+| '?10 | U0 | {bb3[3]}
+| '?11 | U0 | {bb3[3]}
+| '?12 | U0 | {bb5[7..=15], bb6[0..=12], bb7[0..=4]}
+| '?13 | U0 | {bb5[14..=15], bb6[0..=12], bb7[0..=4]}
+| '?14 | U0 | {bb5[14..=15], bb6[0..=12], bb7[0..=4]}
+| '?15 | U0 | {bb5[14..=15], bb6[0..=12], bb7[0..=4]}
+| '?16 | U0 | {bb5[15]}
+| '?17 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| '?18 | U0 | {bb6[1..=12], bb7[0..=4]}
+| '?19 | U0 | {bb6[6..=12], bb7[0..=4]}
+| '?20 | U0 | {bb6[7..=12], bb7[0..=4]}
+| '?21 | U0 | {bb6[10..=12], bb7[0..=4]}
+| '?22 | U0 | {bb6[11..=12], bb7[0..=4]}
+| '?23 | U0 | {bb6[12], bb7[0..=4]}
+| '?24 | U0 | {bb1[5..=18]}
+| '?25 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?26 | U0 | {bb1[5..=18]}
+| '?27 | U0 | {bb1[5..=18]}
+| '?28 | U0 | {bb1[5..=18]}
+| '?29 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?30 | U0 | {bb7[0..=4]}
+| '?31 | U0 | {bb5[9..=15], bb6[0..=12], bb7[0..=4]}
+| '?32 | U0 | {bb5[9..=15], bb6[0..=12], bb7[0..=4]}
+| '?33 | U0 | {bb5[8..=15], bb6[0..=12], bb7[0..=4]}
+| '?34 | U0 | {bb5[8..=15], bb6[0..=12], bb7[0..=4]}
+| '?35 | U0 | {bb6[2..=12], bb7[0..=4]}
+| '?36 | U0 | {bb6[0..=12], bb7[0..=4]}
+| '?37 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| '?38 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| '?39 | U0 | {bb6[8..=12], bb7[0..=4]}
+| '?40 | U0 | {bb6[7..=12], bb7[0..=4]}
+| '?41 | U0 | {bb6[12], bb7[0..=4]}
+| '?42 | U0 | {bb6[12], bb7[0..=4]}
+| '?43 | U0 | {bb6[11..=12], bb7[0..=4]}
+| '?44 | U0 | {bb6[11..=12], bb7[0..=4]}
+| '?45 | U0 | {bb0[2]}
+| '?46 | U0 | {bb3[3]}
+| '?47 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?48 | U0 | {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0], '?0, '?1}
+| '?49 | U0 | {bb5[15]}
+| '?50 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| '?51 | U0 | {bb6[12], bb7[0..=4]}
+| '?52 | U0 | {bb5[15]}
+| '?53 | U0 | {bb5[15]}
+| '?54 | U0 | {bb6[12], bb7[0..=4]}
+| '?55 | U0 | {bb6[12], bb7[0..=4]}
+| '?56 | U0 | {bb5[15], bb6[0..=12], bb7[0..=4]}
+| '?57 | U0 | {bb7[4]}
+|
+| Inference Constraints
+| '?0 live at {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0]}
+| '?1 live at {bb0[0..=2], bb1[0..=18], bb2[0..=1], bb3[0..=3], bb4[0..=2], bb5[0..=15], bb6[0..=12], bb7[0..=4], bb8[0..=9], bb9[0..=4], bb10[0..=1], bb11[0], bb12[0], bb13[0], bb14[0]}
+| '?2 live at {bb0[2]}
+| '?3 live at {bb0[2]}
+| '?4 live at {bb1[3]}
+| '?5 live at {bb1[4]}
+| '?6 live at {bb1[10]}
+| '?7 live at {bb1[11]}
+| '?8 live at {bb1[12]}
+| '?9 live at {bb1[14]}
+| '?10 live at {bb3[3]}
+| '?11 live at {bb3[3]}
+| '?12 live at {bb5[7]}
+| '?13 live at {bb5[14]}
+| '?14 live at {bb5[14]}
+| '?15 live at {bb5[14]}
+| '?16 live at {bb5[15]}
+| '?17 live at {bb5[15]}
+| '?18 live at {bb6[1]}
+| '?19 live at {bb6[6]}
+| '?20 live at {bb6[7]}
+| '?21 live at {bb6[10]}
+| '?22 live at {bb6[11]}
+| '?23 live at {bb6[12]}
+| '?24 live at {bb1[5..=18]}
+| '?26 live at {bb1[13..=14]}
+| '?27 live at {bb1[12]}
+| '?28 live at {bb1[11]}
+| '?30 live at {bb7[0..=4]}
+| '?31 live at {bb5[9..=14]}
+| '?32 live at {bb5[9..=14]}
+| '?33 live at {bb5[8]}
+| '?34 live at {bb5[8]}
+| '?35 live at {bb6[2..=10]}
+| '?36 live at {bb6[0..=1]}
+| '?37 live at {bb5[15]}
+| '?38 live at {bb5[15]}
+| '?39 live at {bb6[8..=12]}
+| '?40 live at {bb6[7]}
+| '?41 live at {bb6[12]}
+| '?42 live at {bb6[12]}
+| '?43 live at {bb6[11]}
+| '?44 live at {bb6[11]}
+| '?56 live at {bb5[15]}
+| '?57 live at {bb7[4]}
+| '?0: '?29 due to Assignment at Single(bb4[2]) (src/demo.rs:35:30: 35:41 (#0)
+| '?0: '?47 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?0: '?48 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?2: '?45 due to TypeAnnotation(GenericArg) at Single(bb0[2]) (src/demo.rs:29:17: 29:65 (#0)
+| '?3: '?2 due to CallArgument(Some(FnDef(DefId(2:3713 ~ core[37f5]::convert::From::from), [std::string::String, &'{erased} str]))) at Single(bb0[2]) (src/demo.rs:29:17: 29:65 (#0)
+| '?4: '?25 due to Usage at Single(bb1[3]) (src/demo.rs:30:23: 30:27 (#0)
+| '?5: '?0 due to Predicate(src/demo.rs:9:14: 9:21 (#0)) at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| '?5: '?24 due to Assignment at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| '?6: '?28 due to Boring at Single(bb1[10]) (src/demo.rs:31:20: 31:22 (#0)
+| '?7: '?27 due to Usage at Single(bb1[11]) (src/demo.rs:31:20: 31:22 (#0)
+| '?8: '?26 due to Boring at Single(bb1[12]) (src/demo.rs:31:15: 31:23 (#0)
+| '?9: '?24 due to Boring at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| '?10: '?46 due to TypeAnnotation(GenericArg) at Single(bb3[3]) (src/demo.rs:34:13: 34:61 (#0)
+| '?11: '?10 due to CallArgument(Some(FnDef(DefId(2:3713 ~ core[37f5]::convert::From::from), [std::string::String, &'{erased} str]))) at Single(bb3[3]) (src/demo.rs:34:13: 34:61 (#0)
+| '?12: '?33 due to Boring at Single(bb5[7]) (src/demo.rs:36:20: 36:21 (#18)
+| '?13: '?37 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| '?14: '?13 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| '?15: '?38 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| '?16: '?49 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?17: '?50 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?17: '?56 due to BoringNoLocation at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?18: '?35 due to Assignment at Single(bb6[1]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?19: '?40 due to Boring at Single(bb6[6]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?20: '?39 due to Boring at Single(bb6[7]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?21: '?43 due to Boring at Single(bb6[10]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?22: '?41 due to Boring at Single(bb6[11]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?23: '?30 due to Boring at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?23: '?51 due to TypeAnnotation(GenericArg) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?24: '?9 due to Boring at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| '?25: '?5 due to Boring at Single(bb1[4]) (src/demo.rs:30:21: 30:28 (#0)
+| '?26: '?9 due to Assignment at Single(bb1[14]) (src/demo.rs:31:9: 31:23 (#0)
+| '?27: '?8 due to Boring at Single(bb1[12]) (src/demo.rs:31:15: 31:23 (#0)
+| '?28: '?7 due to Boring at Single(bb1[11]) (src/demo.rs:31:20: 31:22 (#0)
+| '?29: '?34 due to Boring at Single(bb5[7]) (src/demo.rs:36:20: 36:21 (#18)
+| '?29: '?47 due to TypeAnnotation(Declaration) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?29: '?48 due to TypeAnnotation(Ascription) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?30: '?57 due to CallArgument(Some(FnDef(DefId(1:4026 ~ std[1e3c]::io::stdio::_print), []))) at Single(bb7[4]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:9: 146:62 (#15)
+| '?31: '?14 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| '?32: '?15 due to Boring at Single(bb5[14]) (src/demo.rs:36:20: 36:21 (#18)
+| '?33: '?31 due to Assignment at Single(bb5[8]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?34: '?32 due to Assignment at Single(bb5[8]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?35: '?44 due to Boring at Single(bb6[10]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?36: '?18 due to Boring at Single(bb6[1]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?37: '?56 due to CallArgument(Some(FnDef(DefId(2:12730 ~ core[37f5]::fmt::rt::{impl#0}::new_display), ['{erased}, &'{erased} std::string::String]))) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?38: '?17 due to CallArgument(Some(FnDef(DefId(2:12730 ~ core[37f5]::fmt::rt::{impl#0}::new_display), ['{erased}, &'{erased} std::string::String]))) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?39: '?23 due to CallArgument(Some(FnDef(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), ['{erased}, 4_usize, 1_usize]))) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?40: '?20 due to Boring at Single(bb6[7]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?41: '?23 due to CallArgument(Some(FnDef(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), ['{erased}, 4_usize, 1_usize]))) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?42: '?23 due to CallArgument(Some(FnDef(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), ['{erased}, 4_usize, 1_usize]))) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?43: '?22 due to Boring at Single(bb6[11]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?44: '?42 due to Boring at Single(bb6[11]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?45: '?2 due to TypeAnnotation(GenericArg) at Single(bb0[2]) (src/demo.rs:29:17: 29:65 (#0)
+| '?46: '?10 due to TypeAnnotation(GenericArg) at Single(bb3[3]) (src/demo.rs:34:13: 34:61 (#0)
+| '?47: '?0 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?47: '?29 due to TypeAnnotation(Declaration) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?48: '?0 due to BoringNoLocation at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?48: '?29 due to TypeAnnotation(Ascription) at All(src/demo.rs:35:12: 35:27) (src/demo.rs:35:12: 35:27 (#0)
+| '?49: '?16 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?49: '?53 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| '?50: '?17 due to TypeAnnotation(GenericArg) at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+| '?51: '?23 due to TypeAnnotation(GenericArg) at Single(bb6[12]) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?51: '?55 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?52: '?53 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| '?53: '?49 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| '?53: '?52 due to BoringNoLocation at All(src/demo.rs:36:15: 36:17) (src/demo.rs:36:15: 36:17 (#18)
+| '?54: '?55 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?55: '?51 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?55: '?54 due to BoringNoLocation at All(/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61) (/rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61 (#18)
+| '?56: '?36 due to Boring at Single(bb5[15]) (src/demo.rs:36:15: 36:17 (#18)
+|
+| Borrows
+| bw0: issued at bb1[10] in '?6
+| bw1: issued at bb5[7] in '?12
+| bw2: issued at bb6[10] in '?21
+|
+| User Type Annotations
+| 0: user_ty: Canonical { value: TypeOf(DefId(2:3713 ~ core[37f5]::convert::From::from), UserArgs { args: [std::string::String, ^c_0], user_self_ty: None }), max_universe: U0, var_kinds: [Ty { ui: U0, sub_root: 0 }] }, span: src/demo.rs:29:17: 29:29, inferred_ty: fn(&str) -> std::string::String {<std::string::String as std::convert::From<&str>>::from}
+| 1: user_ty: Canonical { value: TypeOf(DefId(2:3713 ~ core[37f5]::convert::From::from), UserArgs { args: [std::string::String, ^c_0], user_self_ty: None }), max_universe: U0, var_kinds: [Ty { ui: U0, sub_root: 0 }] }, span: src/demo.rs:34:13: 34:25, inferred_ty: fn(&str) -> std::string::String {<std::string::String as std::convert::From<&str>>::from}
+| 2: user_ty: Canonical { value: Ty(&'static std::string::String), max_universe: U0, var_kinds: [] }, span: src/demo.rs:35:12: 35:27, inferred_ty: &std::string::String
+| 3: user_ty: Canonical { value: Ty(&'static std::string::String), max_universe: U0, var_kinds: [] }, span: src/demo.rs:35:12: 35:27, inferred_ty: &std::string::String
+| 4: user_ty: Canonical { value: TypeOf(DefId(2:12730 ~ core[37f5]::fmt::rt::{impl#0}::new_display), UserArgs { args: ['^c_0, ^c_1], user_self_ty: Some(UserSelfTy { impl_def_id: DefId(2:12729 ~ core[37f5]::fmt::rt::{impl#0}), self_ty: core::fmt::rt::Argument<'^c_2> }) }), max_universe: U0, var_kinds: [Region(U0), Ty { ui: U0, sub_root: 1 }, Region(U0)] }, span: src/demo.rs:36:15: 36:17, inferred_ty: for<'a> fn(&'a &std::string::String) -> core::fmt::rt::Argument<'a> {core::fmt::rt::Argument::<'_>::new_display::<&std::string::String>}
+| 5: user_ty: Canonical { value: TypeOf(DefId(2:12831 ~ core[37f5]::fmt::{impl#4}::new), UserArgs { args: ['^c_0, ^c_BoundConst { var: 1, .. }, ^c_BoundConst { var: 2, .. }], user_self_ty: Some(UserSelfTy { impl_def_id: DefId(2:12829 ~ core[37f5]::fmt::{impl#4}), self_ty: std::fmt::Arguments<'^c_3> }) }), max_universe: U0, var_kinds: [Region(U0), Const(U0), Const(U0), Region(U0)] }, span: /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/macros.rs:146:28: 146:61, inferred_ty: unsafe fn(&[u8; 4], &[core::fmt::rt::Argument<'_>; 1]) -> std::fmt::Arguments<'_> {std::fmt::Arguments::<'_>::new::<4, 1>}
+|
+fn main() -> () {
+    let mut _0: ();
+    let _1: ();
+    let _2: std::string::String;
+    let mut _4: std::option::Option<&std::string::String>;
+    let mut _5: std::option::Option<&std::string::String>;
+    let mut _6: &std::string::String;
+    let _7: &std::string::String;
+    let _8: std::string::String;
+    let _10: ();
+    let _11: ();
+    let mut _12: std::fmt::Arguments<'_>;
+    let mut _14: &&std::string::String;
+    let mut _16: core::fmt::rt::Argument<'_>;
+    let mut _17: &&std::string::String;
+    let mut _18: &[u8; 4];
+    let _19: &[u8; 4];
+    let mut _20: &[core::fmt::rt::Argument<'_>; 1];
+    let _21: &[core::fmt::rt::Argument<'_>; 1];
+    let _22: ();
+    let mut _23: std::string::String;
+    scope 1 {
+        debug l => _2;
+        let mut _3: Q<'_>;
+        scope 2 {
+            debug q => _3;
+        }
+    }
+    scope 3 {
+        debug z => _8;
+        let _9: &std::string::String as UserTypeProjection { base: UserType(2), projs: [] };
+        scope 4 {
+            debug s => _9;
+            let _13: (&&std::string::String,);
+            scope 5 {
+                debug args => _13;
+                let _15: [core::fmt::rt::Argument<'_>; 1];
+                scope 6 {
+                    debug args => _15;
+                }
+            }
+        }
+    }
+
+    bb0: {
+        StorageLive(_1);
+        StorageLive(_2);
+        _2 = <String as From<&str>>::from(const "hello world, this is long enough") -> [return: bb1, unwind: bb14];
+    }
+
+    bb1: {
+        FakeRead(ForLet(None), _2);
+        StorageLive(_3);
+        StorageLive(_4);
+        _4 = Option::<&String>::None;
+        _3 = Q::<'_>(move _4);
+        StorageDead(_4);
+        FakeRead(ForLet(None), _3);
+        StorageLive(_5);
+        StorageLive(_6);
+        StorageLive(_7);
+        _7 = &_2;
+        _6 = &(*_7);
+        _5 = Option::<&String>::Some(move _6);
+        StorageDead(_6);
+        (_3.0: std::option::Option<&std::string::String>) = move _5;
+        StorageDead(_5);
+        StorageDead(_7);
+        _1 = const ();
+        drop(_3) -> [return: bb2, unwind: bb13];
+    }
+
+    bb2: {
+        StorageDead(_3);
+        drop(_2) -> [return: bb3, unwind: bb14];
+    }
+
+    bb3: {
+        StorageDead(_2);
+        StorageDead(_1);
+        StorageLive(_8);
+        _8 = <String as From<&str>>::from(const "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") -> [return: bb4, unwind: bb14];
+    }
+
+    bb4: {
+        FakeRead(ForLet(None), _8);
+        StorageLive(_9);
+        _9 = read_kept() -> [return: bb5, unwind: bb12];
+    }
+
+    bb5: {
+        FakeRead(ForLet(None), _9);
+        AscribeUserType(_9, o, UserTypeProjection { base: UserType(3), projs: [] });
+        StorageLive(_10);
+        StorageLive(_11);
+        StorageLive(_12);
+        StorageLive(_13);
+        StorageLive(_14);
+        _14 = &_9;
+        _13 = (move _14,);
+        StorageDead(_14);
+        FakeRead(ForLet(None), _13);
+        StorageLive(_15);
+        StorageLive(_16);
+        StorageLive(_17);
+        _17 = &(*(_13.0: &&std::string::String));
+        _16 = core::fmt::rt::Argument::<'_>::new_display::<&String>(move _17) -> [return: bb6, unwind: bb12];
+    }
+
+    bb6: {
+        StorageDead(_17);
+        _15 = [move _16];
+        StorageDead(_16);
+        FakeRead(ForLet(None), _15);
+        StorageLive(_18);
+        StorageLive(_19);
+        _19 = const b"\xc0\x01\n\x00";
+        _18 = &(*_19);
+        StorageLive(_20);
+        StorageLive(_21);
+        _21 = &_15;
+        _20 = &(*_21);
+        _12 = Arguments::<'_>::new::<4, 1>(move _18, move _20) -> [return: bb7, unwind: bb12];
+    }
+
+    bb7: {
+        StorageDead(_21);
+        StorageDead(_20);
+        StorageDead(_19);
+        StorageDead(_18);
+        _11 = std::io::_print(move _12) -> [return: bb8, unwind: bb12];
+    }
+
+    bb8: {
+        StorageDead(_12);
+        StorageDead(_15);
+        StorageDead(_13);
+        StorageDead(_11);
+        _10 = const ();
+        StorageDead(_10);
+        StorageLive(_22);
+        StorageLive(_23);
+        _23 = move _8;
+        _22 = std::mem::drop::<String>(move _23) -> [return: bb9, unwind: bb11];
+    }
+
+    bb9: {
+        StorageDead(_23);
+        StorageDead(_22);
+        _0 = const ();
+        StorageDead(_9);
+        drop(_8) -> [return: bb10, unwind: bb14];
+    }
+
+    bb10: {
+        StorageDead(_8);
+        return;
+    }
+
+    bb11 (cleanup): {
+        drop(_23) -> [return: bb12, unwind terminate(cleanup)];
+    }
+
+    bb12 (cleanup): {
+        drop(_8) -> [return: bb14, unwind terminate(cleanup)];
+    }
+
+    bb13 (cleanup): {
+        drop(_2) -> [return: bb14, unwind terminate(cleanup)];
+    }
+
+    bb14 (cleanup): {
+        resume;
+    }
+}
+
+alloc10 (size: 4, align: 1) {
+    c0 01 0a 00                                     │ ....
+}
+
+alloc9 (size: 32, align: 1) {
+    0x00 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+    0x10 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+}
+
+alloc8 (size: 32, align: 1) {
+    0x00 │ 68 65 6c 6c 6f 20 77 6f 72 6c 64 2c 20 74 68 69 │ hello world, thi
+    0x10 │ 73 20 69 73 20 6c 6f 6e 67 20 65 6e 6f 75 67 68 │ s is long enough
+}

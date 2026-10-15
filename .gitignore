@@ -1,0 +1,13 @@
+# macOS junk
+.DS_Store
+
+# Compiled ELF binaries; rebuilt by build.sh on the Linux build host
+/out/demo_O0
+/out/demo_O2
+/out/issue_original_O0
+/out/issue_original_O2
+/out/issue_asan
+/out/rejected
+
+# Local backups of earlier report versions; history lives in git
+*.bak.html

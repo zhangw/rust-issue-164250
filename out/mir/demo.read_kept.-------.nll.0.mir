@@ -1,0 +1,78 @@
+// MIR for `read_kept` 0 nll
+
+| Free Region Mapping
+| '?0 | Global | ['?0, '?1]
+| '?1 | Local | ['?1]
+|
+| Inferred Region Values
+| '?0 | U0 | {bb0[0..=8], bb1[0..=7], bb2[0], '?0, '?1}
+| '?1 | U0 | {bb0[0..=8], bb1[0..=7], bb2[0], '?1}
+| '?2 | U0 | {bb0[4..=8]}
+| '?3 | U0 | {bb0[5..=8]}
+| '?4 | U0 | {bb0[0..=8], bb1[0..=7], bb2[0], '?0, '?1}
+| '?5 | U0 | {bb0[0..=8], bb1[0..=7], bb2[0], '?0, '?1}
+| '?6 | U0 | {bb0[0..=8], bb1[0..=7], bb2[0], '?0, '?1}
+| '?7 | U0 | {bb0[0..=8], bb1[0..=7], bb2[0], '?0, '?1}
+| '?8 | U0 | {bb0[6..=8]}
+| '?9 | U0 | {bb0[5..=8]}
+| '?10 | U0 | {bb0[8]}
+|
+| Inference Constraints
+| '?0 live at {bb0[0..=8], bb1[0..=7], bb2[0]}
+| '?1 live at {bb0[0..=8], bb1[0..=7], bb2[0]}
+| '?2 live at {bb0[4]}
+| '?3 live at {bb0[5]}
+| '?4 live at {bb1[2]}
+| '?5 live at {bb1[3]}
+| '?8 live at {bb0[6..=8]}
+| '?9 live at {bb0[5]}
+| '?10 live at {bb0[8]}
+| '?0: '?6 due to BoringNoLocation at All(src/demo.rs:23:19: 23:34) (src/demo.rs:23:19: 23:34 (#0)
+| '?2: '?9 due to Boring at Single(bb0[4]) (src/demo.rs:24:16: 24:20 (#0)
+| '?3: '?8 due to Boring at Single(bb0[5]) (src/demo.rs:24:16: 24:20 (#0)
+| '?4: '?7 due to Boring at Single(bb1[2]) (src/demo.rs:24:14: 24:44 (#0)
+| '?5: '?6 due to Return(Normal) at Single(bb1[3]) (src/demo.rs:24:14: 24:44 (#0)
+| '?6: '?0 due to BoringNoLocation at All(src/demo.rs:23:19: 23:34) (src/demo.rs:23:19: 23:34 (#0)
+| '?7: '?5 due to Boring at Single(bb1[3]) (src/demo.rs:24:14: 24:44 (#0)
+| '?8: '?10 due to CallArgument(Some(FnDef(DefId(2:12104 ~ core[37f5]::sync::atomic::{impl#5}::load), [std::string::String]))) at Single(bb0[8]) (src/demo.rs:24:16: 24:44 (#0)
+| '?9: '?3 due to Boring at Single(bb0[5]) (src/demo.rs:24:16: 24:20 (#0)
+|
+fn read_kept() -> &String {
+    let mut _0: &std::string::String;
+    let _1: &std::string::String;
+    let _2: *mut std::string::String;
+    let mut _3: &std::sync::atomic::Atomic<*mut std::string::String>;
+    let _4: &std::sync::atomic::Atomic<*mut std::string::String>;
+    let mut _5: std::sync::atomic::Ordering;
+
+    bb0: {
+        StorageLive(_1);
+        StorageLive(_2);
+        StorageLive(_3);
+        StorageLive(_4);
+        _4 = const {alloc1: &Atomic<*mut String>};
+        _3 = &(*_4);
+        StorageLive(_5);
+        _5 = std::sync::atomic::Ordering::Relaxed;
+        _2 = Atomic::<*mut String>::load(move _3, move _5) -> [return: bb1, unwind: bb2];
+    }
+
+    bb1: {
+        StorageDead(_5);
+        StorageDead(_3);
+        _1 = &(*_2);
+        _0 = &(*_1);
+        StorageDead(_4);
+        StorageDead(_2);
+        StorageDead(_1);
+        return;
+    }
+
+    bb2 (cleanup): {
+        resume;
+    }
+}
+
+alloc1 (static: KEPT, size: 8, align: 8) {
+    00 00 00 00 00 00 00 00                         │ ........
+}

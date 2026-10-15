@@ -1,0 +1,22 @@
+error[E0597]: `l` does not live long enough
+ --> rejected/rejected.rs:8:21
+  |
+7 |     let l = String::from("hello");
+  |         - binding `l` declared here
+8 |     let _q = Q(Some(&l));
+  |                -----^^-
+  |                |    |
+  |                |    borrowed value does not live long enough
+  |                this usage requires that `l` is borrowed for `'static`
+9 | }
+  | - `l` dropped here while still borrowed
+  |
+note: requirement that the value outlives `'static` introduced here
+ --> rejected/rejected.rs:2:14
+  |
+2 | struct Q<'a: 'static>(Option<&'a String>);
+  |              ^^^^^^^
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0597`.

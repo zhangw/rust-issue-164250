@@ -1,0 +1,161 @@
+0000000000014d80 <demo::main>:
+demo::main:
+src/demo.rs:27
+   14d80:	push   rbp
+   14d81:	mov    rbp,rsp
+   14d84:	sub    rsp,0xc0
+src/demo.rs:28
+   14d8b:	mov    BYTE PTR [rbp-0x19],0x0
+src/demo.rs:29
+   14d8f:	lea    rsi,[rip+0xffffffffffff419a]        # 8f30 <GCC_except_table142+0x1860>
+   14d96:	lea    rdi,[rbp-0xa0]
+   14d9d:	mov    QWORD PTR [rbp-0xa8],rdi
+   14da4:	mov    edx,0x20
+   14da9:	call   154b0 <<alloc::string::String as core::convert::From<&str>>::from>
+   14dae:	mov    rax,QWORD PTR [rbp-0xa8]
+src/demo.rs:30
+   14db5:	mov    QWORD PTR [rbp-0x88],0x0
+src/demo.rs:31
+   14dc0:	mov    QWORD PTR [rbp-0x88],rax
+   14dc7:	lea    rdi,[rbp-0x88]
+src/demo.rs:32
+   14dce:	call   14a60 <core::ptr::drop_glue::<demo::Q>>
+   14dd3:	jmp    14df4 <demo::main+0x74>
+   14dd5:	lea    rdi,[rbp-0xa0]
+   14ddc:	call   14a80 <core::ptr::drop_glue::<alloc::string::String>>
+   14de1:	jmp    14ecf <demo::main+0x14f>
+   14de6:	mov    rcx,rax
+   14de9:	mov    eax,edx
+   14deb:	mov    QWORD PTR [rbp-0x18],rcx
+   14def:	mov    DWORD PTR [rbp-0x10],eax
+   14df2:	jmp    14dd5 <demo::main+0x55>
+   14df4:	lea    rdi,[rbp-0xa0]
+   14dfb:	call   14a80 <core::ptr::drop_glue::<alloc::string::String>>
+src/demo.rs:34
+   14e00:	mov    BYTE PTR [rbp-0x19],0x1
+   14e04:	lea    rsi,[rip+0xffffffffffff40e5]        # 8ef0 <GCC_except_table142+0x1820>
+   14e0b:	lea    rdi,[rbp-0x80]
+   14e0f:	mov    edx,0x20
+   14e14:	call   154b0 <<alloc::string::String as core::convert::From<&str>>::from>
+src/demo.rs:35
+   14e19:	call   14ef0 <demo::read_kept>
+   14e1e:	mov    QWORD PTR [rbp-0xb0],rax
+   14e25:	jmp    14e44 <demo::main+0xc4>
+src/demo.rs:38
+   14e27:	test   BYTE PTR [rbp-0x19],0x1
+   14e2b:	jne    14ed8 <demo::main+0x158>
+   14e31:	jmp    14ecf <demo::main+0x14f>
+   14e36:	mov    rcx,rax
+   14e39:	mov    eax,edx
+   14e3b:	mov    QWORD PTR [rbp-0x18],rcx
+   14e3f:	mov    DWORD PTR [rbp-0x10],eax
+   14e42:	jmp    14e27 <demo::main+0xa7>
+   14e44:	mov    rax,QWORD PTR [rbp-0xb0]
+src/demo.rs:35
+   14e4b:	mov    QWORD PTR [rbp-0x68],rax
+   14e4f:	lea    rsi,[rbp-0x68]
+src/demo.rs:36
+   14e53:	mov    QWORD PTR [rbp-0x8],rsi
+   14e57:	lea    rdi,[rbp-0x50]
+   14e5b:	call   14940 <<core::fmt::rt::Argument>::new_display::<&alloc::string::String>>
+   14e60:	jmp    14e62 <demo::main+0xe2>
+   14e62:	movups xmm0,XMMWORD PTR [rbp-0x50]
+   14e66:	movaps XMMWORD PTR [rbp-0x60],xmm0
+   14e6a:	lea    rdi,[rip+0xffffffffffff2b0d]        # 797e <GCC_except_table142+0x2ae>
+   14e71:	lea    rsi,[rbp-0x60]
+   14e75:	call   14970 <<core::fmt::Arguments>::new::<4, 1>>
+   14e7a:	mov    QWORD PTR [rbp-0xc0],rdx
+   14e81:	mov    QWORD PTR [rbp-0xb8],rax
+   14e88:	jmp    14e8a <demo::main+0x10a>
+   14e8a:	mov    rsi,QWORD PTR [rbp-0xc0]
+   14e91:	mov    rdi,QWORD PTR [rbp-0xb8]
+   14e98:	mov    rax,QWORD PTR [rip+0x409a1]        # 55840 <_DYNAMIC+0x260>
+   14e9f:	call   rax
+   14ea1:	jmp    14ea3 <demo::main+0x123>
+src/demo.rs:37
+   14ea3:	mov    BYTE PTR [rbp-0x19],0x0
+   14ea7:	mov    rax,QWORD PTR [rbp-0x70]
+   14eab:	mov    QWORD PTR [rbp-0x30],rax
+   14eaf:	movups xmm0,XMMWORD PTR [rbp-0x80]
+   14eb3:	movaps XMMWORD PTR [rbp-0x40],xmm0
+   14eb7:	lea    rdi,[rbp-0x40]
+   14ebb:	call   149d0 <core::mem::drop::<alloc::string::String>>
+   14ec0:	jmp    14ec2 <demo::main+0x142>
+src/demo.rs:38
+   14ec2:	mov    BYTE PTR [rbp-0x19],0x0
+   14ec6:	add    rsp,0xc0
+   14ecd:	pop    rbp
+   14ece:	ret    
+src/demo.rs:27
+   14ecf:	mov    rdi,QWORD PTR [rbp-0x18]
+   14ed3:	call   52920 <_Unwind_Resume@plt>
+   14ed8:	lea    rdi,[rbp-0x80]
+src/demo.rs:38
+   14edc:	call   14a80 <core::ptr::drop_glue::<alloc::string::String>>
+   14ee1:	jmp    14ecf <demo::main+0x14f>
+src/demo.rs:27
+   14ee3:	call   QWORD PTR [rip+0x40937]        # 55820 <_DYNAMIC+0x240>
+
+0000000000014ef0 <demo::read_kept>:
+demo::read_kept:
+src/demo.rs:23
+   14ef0:	push   rbp
+   14ef1:	mov    rbp,rsp
+   14ef4:	sub    rsp,0x10
+src/demo.rs:24
+   14ef8:	lea    rdi,[rip+0x42b51]        # 57a50 <demo::KEPT>
+   14eff:	xor    esi,esi
+   14f01:	call   15030 <<core::sync::atomic::Atomic<*mut alloc::string::String>>::load>
+   14f06:	mov    QWORD PTR [rbp-0x8],rax
+   14f0a:	and    rax,0x7
+   14f0e:	cmp    rax,0x0
+   14f12:	jne    14f29 <demo::read_kept+0x39>
+   14f14:	mov    rax,QWORD PTR [rbp-0x8]
+   14f18:	cmp    rax,0x0
+   14f1c:	sete   al
+   14f1f:	and    al,0xff
+   14f21:	xor    al,0xff
+   14f23:	test   al,0x1
+   14f25:	jne    14f3f <demo::read_kept+0x4f>
+   14f27:	jmp    14f49 <demo::read_kept+0x59>
+   14f29:	mov    rsi,QWORD PTR [rbp-0x8]
+   14f2d:	mov    edi,0x8
+   14f32:	lea    rdx,[rip+0x3eaff]        # 53a38 <__frame_dummy_init_array_entry+0xc8>
+   14f39:	call   QWORD PTR [rip+0x40909]        # 55848 <_DYNAMIC+0x268>
+   14f3f:	mov    rax,QWORD PTR [rbp-0x8]
+src/demo.rs:25
+   14f43:	add    rsp,0x10
+   14f47:	pop    rbp
+   14f48:	ret    
+src/demo.rs:24
+   14f49:	lea    rdi,[rip+0x3eae8]        # 53a38 <__frame_dummy_init_array_entry+0xc8>
+   14f50:	call   QWORD PTR [rip+0x408fa]        # 55850 <_DYNAMIC+0x270>
+
+0000000000015440 <<demo::Q as core::ops::drop::Drop>::drop>:
+<demo::Q as core::ops::drop::Drop>::drop:
+src/demo.rs:13
+   15440:	push   rbp
+   15441:	mov    rbp,rsp
+   15444:	sub    rsp,0x20
+   15448:	mov    QWORD PTR [rbp-0x18],rdi
+   1544c:	mov    QWORD PTR [rbp-0x10],rdi
+src/demo.rs:14
+   15450:	mov    rdx,QWORD PTR [rdi]
+   15453:	mov    eax,0x1
+   15458:	xor    ecx,ecx
+   1545a:	cmp    rdx,0x0
+   1545e:	cmove  rax,rcx
+   15462:	test   rax,0x1
+   15468:	je     15483 <<demo::Q as core::ops::drop::Drop>::drop+0x43>
+   1546a:	mov    rax,QWORD PTR [rbp-0x18]
+   1546e:	mov    rsi,QWORD PTR [rax]
+   15471:	mov    QWORD PTR [rbp-0x8],rsi
+src/demo.rs:17
+   15475:	lea    rdi,[rip+0x425d4]        # 57a50 <demo::KEPT>
+   1547c:	xor    edx,edx
+   1547e:	call   15050 <<core::sync::atomic::Atomic<*mut alloc::string::String>>::store>
+src/demo.rs:19
+   15483:	add    rsp,0x20
+   15487:	pop    rbp
+   15488:	ret    
+

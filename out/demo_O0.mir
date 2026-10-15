@@ -1,0 +1,263 @@
+// WARNING: This output format is intended for human consumers only
+// and is subject to change without notice. Knock yourself out.
+// HINT: See also -Z dump-mir for MIR at specific points during compilation.
+static KEPT: Atomic<*mut String> = {
+    let mut _0: std::sync::atomic::Atomic<*mut std::string::String>;
+    let mut _1: *mut std::string::String;
+
+    bb0: {
+        StorageLive(_1);
+        ConstEvalCounter;
+        _1 = null_mut::<String>() -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        ConstEvalCounter;
+        _0 = Atomic::<*mut String>::new(move _1) -> [return: bb2, unwind continue];
+    }
+
+    bb2: {
+        StorageDead(_1);
+        return;
+    }
+}
+
+fn <impl at src/demo.rs:11:1: 11:33>::drop(_1: &mut Q<'_>) -> () {
+    debug self => _1;
+    let mut _0: ();
+    let mut _2: isize;
+    let _4: ();
+    let mut _5: &std::sync::atomic::Atomic<*mut std::string::String>;
+    let mut _6: *mut std::string::String;
+    let mut _7: *const std::string::String;
+    let mut _8: std::sync::atomic::Ordering;
+    scope 1 {
+        debug s => _3;
+        let _3: &std::string::String;
+        scope 2 {
+            debug s => _3;
+        }
+    }
+
+    bb0: {
+        _2 = discriminant(((*_1).0: std::option::Option<&std::string::String>));
+        switchInt(move _2) -> [1: bb1, 0: bb2, otherwise: bb3];
+    }
+
+    bb1: {
+        _3 = copy ((((*_1).0: std::option::Option<&std::string::String>) as Some).0: &std::string::String);
+        _5 = const {alloc1: &Atomic<*mut String>};
+        _7 = &raw const (*_3);
+        _6 = move _7 as *mut std::string::String (PtrToPtr);
+        _8 = std::sync::atomic::Ordering::Relaxed;
+        _4 = Atomic::<*mut String>::store(move _5, move _6, move _8) -> [return: bb2, unwind continue];
+    }
+
+    bb2: {
+        return;
+    }
+
+    bb3: {
+        unreachable;
+    }
+}
+
+alloc1 (static: KEPT, size: 8, align: 8) {
+    00 00 00 00 00 00 00 00                         │ ........
+}
+
+fn read_kept() -> &String {
+    let mut _0: &std::string::String;
+    let _1: *mut std::string::String;
+    let mut _2: &std::sync::atomic::Atomic<*mut std::string::String>;
+    let mut _3: std::sync::atomic::Ordering;
+    let mut _4: *const ();
+    let mut _5: usize;
+    let mut _6: usize;
+    let mut _7: usize;
+    let mut _8: bool;
+    let mut _9: *const ();
+    let mut _10: usize;
+    let mut _11: bool;
+    let mut _12: bool;
+    let mut _13: bool;
+
+    bb0: {
+        _2 = const {alloc1: &Atomic<*mut String>};
+        _3 = std::sync::atomic::Ordering::Relaxed;
+        _1 = Atomic::<*mut String>::load(move _2, move _3) -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        _4 = copy _1 as *const () (PtrToPtr);
+        _5 = copy _4 as usize (Transmute);
+        _6 = Sub(const <std::string::String as std::mem::SizedTypeProperties>::ALIGN, const 1_usize);
+        _7 = BitAnd(copy _5, copy _6);
+        _8 = Eq(copy _7, const 0_usize);
+        assert(copy _8, "misaligned pointer dereference: address must be a multiple of {} but is {}", const <std::string::String as std::mem::SizedTypeProperties>::ALIGN, copy _5) -> [success: bb2, unwind unreachable];
+    }
+
+    bb2: {
+        _9 = copy _1 as *const () (PtrToPtr);
+        _10 = copy _9 as usize (Transmute);
+        _11 = Eq(copy _10, const 0_usize);
+        _12 = BitAnd(copy _11, const true);
+        _13 = Not(copy _12);
+        assert(copy _13, "null pointer dereference occurred") -> [success: bb3, unwind unreachable];
+    }
+
+    bb3: {
+        _0 = &(*_1);
+        return;
+    }
+}
+
+alloc1 (static: KEPT, size: 8, align: 8) {
+    00 00 00 00 00 00 00 00                         │ ........
+}
+
+fn main() -> () {
+    let mut _0: ();
+    let _1: std::string::String;
+    let mut _3: std::option::Option<&std::string::String>;
+    let mut _4: std::option::Option<&std::string::String>;
+    let _5: &std::string::String;
+    let _6: std::string::String;
+    let _8: ();
+    let mut _9: std::fmt::Arguments<'_>;
+    let mut _11: &&std::string::String;
+    let mut _13: core::fmt::rt::Argument<'_>;
+    let mut _14: &[u8; 4];
+    let _15: &[core::fmt::rt::Argument<'_>; 1];
+    let _16: ();
+    let mut _17: std::string::String;
+    let mut _18: &&std::string::String;
+    let mut _19: bool;
+    scope 1 {
+        debug l => _1;
+        let mut _2: Q<'_>;
+        scope 2 {
+            debug q => _2;
+        }
+    }
+    scope 3 {
+        debug z => _6;
+        let _7: &std::string::String;
+        scope 4 {
+            debug s => _7;
+            let _10: (&&std::string::String,);
+            scope 5 {
+                debug args => _10;
+                let _12: [core::fmt::rt::Argument<'_>; 1];
+                scope 6 {
+                    debug args => _12;
+                }
+            }
+        }
+    }
+
+    bb0: {
+        _19 = const false;
+        _1 = <String as From<&str>>::from(const "hello world, this is long enough") -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        _3 = Option::<&String>::None;
+        _2 = Q::<'_>(move _3);
+        _5 = &_1;
+        _4 = Option::<&String>::Some(copy _5);
+        (_2.0: std::option::Option<&std::string::String>) = move _4;
+        drop(_2) -> [return: bb2, unwind: bb10];
+    }
+
+    bb2: {
+        drop(_1) -> [return: bb3, unwind continue];
+    }
+
+    bb3: {
+        _19 = const true;
+        _6 = <String as From<&str>>::from(const "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") -> [return: bb4, unwind continue];
+    }
+
+    bb4: {
+        _7 = read_kept() -> [return: bb5, unwind: bb13];
+    }
+
+    bb5: {
+        _11 = &_7;
+        _10 = (move _11,);
+        _18 = no_retag copy (_10.0: &&std::string::String);
+        _13 = core::fmt::rt::Argument::<'_>::new_display::<&String>(copy _18) -> [return: bb6, unwind: bb13];
+    }
+
+    bb6: {
+        _12 = [move _13];
+        _14 = const b"\xc0\x01\n\x00";
+        _15 = &_12;
+        _9 = Arguments::<'_>::new::<4, 1>(move _14, copy _15) -> [return: bb7, unwind: bb13];
+    }
+
+    bb7: {
+        _8 = std::io::_print(move _9) -> [return: bb8, unwind: bb13];
+    }
+
+    bb8: {
+        _19 = const false;
+        _17 = move _6;
+        _16 = std::mem::drop::<String>(move _17) -> [return: bb9, unwind: bb13];
+    }
+
+    bb9: {
+        _19 = const false;
+        return;
+    }
+
+    bb10 (cleanup): {
+        drop(_1) -> [return: bb11, unwind terminate(cleanup)];
+    }
+
+    bb11 (cleanup): {
+        resume;
+    }
+
+    bb12 (cleanup): {
+        drop(_6) -> [return: bb11, unwind terminate(cleanup)];
+    }
+
+    bb13 (cleanup): {
+        switchInt(copy _19) -> [0: bb11, otherwise: bb12];
+    }
+}
+
+alloc10 (size: 4, align: 1) {
+    c0 01 0a 00                                     │ ....
+}
+
+alloc9 (size: 32, align: 1) {
+    0x00 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+    0x10 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+}
+
+alloc8 (size: 32, align: 1) {
+    0x00 │ 68 65 6c 6c 6f 20 77 6f 72 6c 64 2c 20 74 68 69 │ hello world, thi
+    0x10 │ 73 20 69 73 20 6c 6f 6e 67 20 65 6e 6f 75 67 68 │ s is long enough
+}
+
+fn Q(_1: Option<&String>) -> Q<'_> {
+    let mut _0: Q<'_>;
+
+    bb0: {
+        _0 = Q::<'_>(move _1);
+        return;
+    }
+}
+
+// MIR FOR CTFE
+fn Q(_1: Option<&String>) -> Q<'_> {
+    let mut _0: Q<'_>;
+
+    bb0: {
+        _0 = Q::<'_>(move _1);
+        return;
+    }
+}

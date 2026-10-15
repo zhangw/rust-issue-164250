@@ -1,0 +1,307 @@
+// WARNING: This output format is intended for human consumers only
+// and is subject to change without notice. Knock yourself out.
+// HINT: See also -Z dump-mir for MIR at specific points during compilation.
+static KEPT: std::sync::Mutex<Vec<Box<dyn Any + Send>>> = {
+    let mut _0: std::sync::Mutex<std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+    let mut _1: std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>;
+
+    bb0: {
+        StorageLive(_1);
+        ConstEvalCounter;
+        _1 = Vec::<Box<dyn Any + Send>>::new() -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        ConstEvalCounter;
+        _0 = std::sync::Mutex::<Vec<Box<dyn Any + Send>>>::new(move _1) -> [return: bb2, unwind: bb3];
+    }
+
+    bb2: {
+        StorageDead(_1);
+        return;
+    }
+
+    bb3 (cleanup): {
+        resume;
+    }
+}
+
+fn <impl at src/issue_original.rs:5:1: 5:38>::drop(_1: &mut Q<T>) -> () {
+    debug self => _1;
+    let mut _0: ();
+    let mut _2: std::option::Option<T>;
+    let mut _3: &mut std::option::Option<T>;
+    let mut _4: isize;
+    let _6: ();
+    let mut _7: &mut std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>;
+    let mut _8: &mut std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+    let mut _9: std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+    let mut _10: std::result::Result<std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>, std::sync::PoisonError<std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>>>;
+    let mut _11: &std::sync::Mutex<std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+    let mut _12: std::boxed::Box<dyn std::any::Any + std::marker::Send>;
+    let mut _13: std::boxed::Box<T>;
+    let mut _14: T;
+    let mut _15: bool;
+    scope 1 {
+        debug t => _5;
+        let _5: T;
+    }
+
+    bb0: {
+        _15 = const false;
+        _3 = &mut ((*_1).0: std::option::Option<T>);
+        _2 = Option::<T>::take(move _3) -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        _4 = discriminant(_2);
+        switchInt(move _4) -> [1: bb2, 0: bb11, otherwise: bb14];
+    }
+
+    bb2: {
+        _15 = const true;
+        _5 = move ((_2 as Some).0: T);
+        _11 = const {alloc4: &std::sync::Mutex<Vec<Box<dyn Any + Send>>>};
+        _10 = std::sync::Mutex::<Vec<Box<dyn Any + Send>>>::lock(move _11) -> [return: bb3, unwind: bb13];
+    }
+
+    bb3: {
+        _9 = Result::<std::sync::MutexGuard<'_, Vec<Box<dyn Any + Send>>>, PoisonError<std::sync::MutexGuard<'_, Vec<Box<dyn Any + Send>>>>>::unwrap(move _10) -> [return: bb4, unwind: bb13];
+    }
+
+    bb4: {
+        _8 = &mut _9;
+        _7 = <std::sync::MutexGuard<'_, Vec<Box<dyn Any + Send>>> as DerefMut>::deref_mut(move _8) -> [return: bb5, unwind: bb9];
+    }
+
+    bb5: {
+        _15 = const false;
+        _14 = move _5;
+        _13 = Box::<T>::new(move _14) -> [return: bb6, unwind: bb9];
+    }
+
+    bb6: {
+        _12 = move _13 as std::boxed::Box<dyn std::any::Any + std::marker::Send> (PointerCoercion(Unsize, Implicit));
+        _6 = Vec::<Box<dyn Any + Send>>::push(copy _7, move _12) -> [return: bb7, unwind: bb9];
+    }
+
+    bb7: {
+        drop(_9) -> [return: bb8, unwind: bb13];
+    }
+
+    bb8: {
+        _15 = const false;
+        goto -> bb11;
+    }
+
+    bb9 (cleanup): {
+        drop(_9) -> [return: bb13, unwind terminate(cleanup)];
+    }
+
+    bb10 (cleanup): {
+        resume;
+    }
+
+    bb11: {
+        return;
+    }
+
+    bb12 (cleanup): {
+        drop(_5) -> [return: bb10, unwind terminate(cleanup)];
+    }
+
+    bb13 (cleanup): {
+        switchInt(copy _15) -> [0: bb10, otherwise: bb12];
+    }
+
+    bb14: {
+        unreachable;
+    }
+}
+
+alloc4 (static: KEPT, size: 32, align: 8) {
+    0x00 │ 00 00 00 00 00 __ __ __ 00 00 00 00 00 00 00 00 │ .....░░░........
+    0x10 │ 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 │ ................
+}
+
+fn main() -> () {
+    let mut _0: ();
+    let _1: std::string::String;
+    let mut _3: std::option::Option<&std::string::String>;
+    let mut _4: std::option::Option<&std::string::String>;
+    let mut _5: &std::string::String;
+    let _6: std::string::String;
+    let mut _8: std::result::Result<std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>, std::sync::PoisonError<std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>>>;
+    let mut _9: &std::sync::Mutex<std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+    let _10: ();
+    let mut _11: std::fmt::Arguments<'_>;
+    let mut _13: &&&std::string::String;
+    let _14: &&std::string::String;
+    let mut _15: std::option::Option<&&std::string::String>;
+    let mut _16: &dyn std::any::Any + std::marker::Send;
+    let _17: &std::boxed::Box<dyn std::any::Any + std::marker::Send>;
+    let _18: &std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>;
+    let mut _19: &std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+    let mut _21: core::fmt::rt::Argument<'_>;
+    let mut _22: &[u8; 4];
+    let _23: &[core::fmt::rt::Argument<'_>; 1];
+    let mut _24: std::boxed::Box<dyn std::any::Any + std::marker::Send>;
+    let mut _25: &&&std::string::String;
+    let mut _26: *const dyn std::any::Any + std::marker::Send;
+    scope 1 {
+        debug l => _1;
+        let mut _2: Q<&std::string::String>;
+        scope 2 {
+            debug q => _2;
+        }
+    }
+    scope 3 {
+        debug _z => _6;
+        let _7: std::sync::MutexGuard<'_, std::vec::Vec<std::boxed::Box<dyn std::any::Any + std::marker::Send>>>;
+        scope 4 {
+            debug k => _7;
+            let _12: (&&&std::string::String,);
+            scope 5 {
+                debug args => _12;
+                let _20: [core::fmt::rt::Argument<'_>; 1];
+                scope 6 {
+                    debug args => _20;
+                }
+            }
+        }
+    }
+
+    bb0: {
+        _1 = <String as From<&str>>::from(const "hello world, this is long enough") -> [return: bb1, unwind continue];
+    }
+
+    bb1: {
+        _3 = Option::<&String>::None;
+        _2 = Q::<&String>(move _3);
+        _5 = &_1;
+        _4 = Option::<&String>::Some(move _5);
+        (_2.0: std::option::Option<&std::string::String>) = move _4;
+        drop(_2) -> [return: bb2, unwind: bb18];
+    }
+
+    bb2: {
+        drop(_1) -> [return: bb3, unwind continue];
+    }
+
+    bb3: {
+        _6 = <String as From<&str>>::from(const "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") -> [return: bb4, unwind continue];
+    }
+
+    bb4: {
+        _9 = const {alloc4: &std::sync::Mutex<Vec<Box<dyn Any + Send>>>};
+        _8 = std::sync::Mutex::<Vec<Box<dyn Any + Send>>>::lock(move _9) -> [return: bb5, unwind: bb17];
+    }
+
+    bb5: {
+        _7 = Result::<std::sync::MutexGuard<'_, Vec<Box<dyn Any + Send>>>, PoisonError<std::sync::MutexGuard<'_, Vec<Box<dyn Any + Send>>>>>::unwrap(move _8) -> [return: bb6, unwind: bb17];
+    }
+
+    bb6: {
+        _19 = &_7;
+        _18 = <std::sync::MutexGuard<'_, Vec<Box<dyn Any + Send>>> as Deref>::deref(move _19) -> [return: bb7, unwind: bb16];
+    }
+
+    bb7: {
+        _17 = <Vec<Box<dyn Any + Send>> as Index<usize>>::index(copy _18, const 0_usize) -> [return: bb8, unwind: bb16];
+    }
+
+    bb8: {
+        _24 = no_retag copy (*_17);
+        _26 = copy ((_24.0: std::ptr::Unique<dyn std::any::Any + std::marker::Send>).0: std::ptr::NonNull<dyn std::any::Any + std::marker::Send>) as *const dyn std::any::Any + std::marker::Send (Transmute);
+        _16 = &(*_26);
+        _15 = <(dyn Any + Send + 'static)>::downcast_ref::<&String>(move _16) -> [return: bb9, unwind: bb16];
+    }
+
+    bb9: {
+        _14 = Option::<&&String>::unwrap(move _15) -> [return: bb10, unwind: bb16];
+    }
+
+    bb10: {
+        _13 = &_14;
+        _12 = (move _13,);
+        _25 = no_retag copy (_12.0: &&&std::string::String);
+        _21 = core::fmt::rt::Argument::<'_>::new_display::<&&String>(copy _25) -> [return: bb11, unwind: bb16];
+    }
+
+    bb11: {
+        _20 = [move _21];
+        _22 = const b"\xc0\x01\n\x00";
+        _23 = &_20;
+        _11 = Arguments::<'_>::new::<4, 1>(move _22, copy _23) -> [return: bb12, unwind: bb16];
+    }
+
+    bb12: {
+        _10 = std::io::_print(move _11) -> [return: bb13, unwind: bb16];
+    }
+
+    bb13: {
+        drop(_7) -> [return: bb14, unwind: bb17];
+    }
+
+    bb14: {
+        drop(_6) -> [return: bb15, unwind continue];
+    }
+
+    bb15: {
+        return;
+    }
+
+    bb16 (cleanup): {
+        drop(_7) -> [return: bb17, unwind terminate(cleanup)];
+    }
+
+    bb17 (cleanup): {
+        drop(_6) -> [return: bb19, unwind terminate(cleanup)];
+    }
+
+    bb18 (cleanup): {
+        drop(_1) -> [return: bb19, unwind terminate(cleanup)];
+    }
+
+    bb19 (cleanup): {
+        resume;
+    }
+}
+
+alloc120 (size: 4, align: 1) {
+    c0 01 0a 00                                     │ ....
+}
+
+alloc119 (size: 32, align: 1) {
+    0x00 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+    0x10 │ 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 58 │ XXXXXXXXXXXXXXXX
+}
+
+alloc118 (size: 32, align: 1) {
+    0x00 │ 68 65 6c 6c 6f 20 77 6f 72 6c 64 2c 20 74 68 69 │ hello world, thi
+    0x10 │ 73 20 69 73 20 6c 6f 6e 67 20 65 6e 6f 75 67 68 │ s is long enough
+}
+
+alloc4 (static: KEPT, size: 32, align: 8) {
+    0x00 │ 00 00 00 00 00 __ __ __ 00 00 00 00 00 00 00 00 │ .....░░░........
+    0x10 │ 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 │ ................
+}
+
+fn Q(_1: Option<T>) -> Q<T> {
+    let mut _0: Q<T>;
+
+    bb0: {
+        _0 = Q::<T>(move _1);
+        return;
+    }
+}
+
+// MIR FOR CTFE
+fn Q(_1: Option<T>) -> Q<T> {
+    let mut _0: Q<T>;
+
+    bb0: {
+        _0 = Q::<T>(move _1);
+        return;
+    }
+}
